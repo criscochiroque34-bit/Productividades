@@ -200,34 +200,23 @@
 
   <div id="view-resumen" style="display:none">
     <div class="card">
-      <div class="card-title">Resumen general — los 3 procesos</div>
+      <div class="card-title">Resumen general</div>
       <div class="card-sub" id="narrativaResumen">Calculando…</div>
+      <div class="controls" style="margin-bottom:16px">
+        <select id="resumenProceso">
+          <option value="TODOS">Todos los procesos</option>
+          <option value="recepcion">Recepción</option>
+          <option value="etiquetado">Etiquetado</option>
+          <option value="anclaje">Anclaje</option>
+        </select>
+      </div>
       <div class="kpis" style="margin-bottom:0">
-        <div class="kpi"><div class="kpi-label">Pedidos históricos</div><div class="kpi-value" id="resTotal">—</div><div class="kpi-sub">suma de los 3 procesos</div></div>
+        <div class="kpi"><div class="kpi-label">Pedidos históricos</div><div class="kpi-value" id="resTotal">—</div><div class="kpi-sub" id="resTotalSub">suma de los 3 procesos</div></div>
         <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value" id="resResp">—</div><div class="kpi-sub">personas únicas con data</div></div>
-        <div class="kpi"><div class="kpi-label">Top absoluto</div><div class="kpi-value accent" id="resTop">—</div><div class="kpi-sub" id="resTopName">—</div></div>
+        <div class="kpi"><div class="kpi-label">Top</div><div class="kpi-value accent" id="resTop">—</div><div class="kpi-sub" id="resTopName">—</div></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">Top 5</div>
-      <div class="card-sub">Mejor productividad promedio, cruzando los 3 procesos</div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Responsable</th><th>Proceso</th><th style="text-align:right">Productividad promedio</th></tr></thead>
-          <tbody id="resTop5Body"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Ranking completo</div>
-      <div class="card-sub">Todos los responsables con data, ordenado por productividad promedio</div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Responsable</th><th>Proceso</th><th style="text-align:right">Días trabajados</th><th style="text-align:right">Pedidos totales</th><th style="text-align:right">Productividad promedio</th></tr></thead>
-          <tbody id="resumenBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+    <div id="resumenTopsWrap"></div>
   </div>
 
   <div id="view-tendencia" style="display:none">
@@ -267,6 +256,7 @@
       </div>
       <div class="controls" style="flex-wrap:wrap; gap:10px">
         <input type="number" id="calcPedidos" placeholder="Cantidad de pedidos" style="width:180px" min="1">
+        <input type="number" id="calcPersonas" placeholder="Personas" style="width:100px" min="1" value="1">
         <select id="calcRitmo">
           <option value="equipo">Al ritmo promedio del equipo</option>
           <option value="top">Al ritmo del top performer</option>
@@ -286,6 +276,10 @@
       <div class="card-title">Cargar archivos</div>
       <div class="card-sub">Sube el Excel de cada proceso — se dedupea automáticamente por código + fecha/hora exacta (excepto anclaje, que cuenta cada reescaneo)</div>
       <div id="dropzonesWrap"></div>
+      <details style="margin-top:14px; border-top:1px solid var(--border); padding-top:14px">
+        <summary style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary)">📅 Ver días con data cargada</summary>
+        <div id="diasCargadosWrap" style="margin-top:14px">Cargando…</div>
+      </details>
     </div>
 
     <div class="card">
@@ -394,6 +388,7 @@ async function init(){
   document.getElementById('calcBtn').addEventListener('click', calcularTiempo);
   document.getElementById('tendenciaProceso').addEventListener('change', loadTendencia);
   document.getElementById('estimadorProceso').addEventListener('change', renderEstimadorLabel);
+  document.getElementById('resumenProceso').addEventListener('change', renderResumen);
   await loadProceso();
 }
 
@@ -505,6 +500,7 @@ async function renderView(){
     renderTurnosTable(); renderMinimosTable();
     const nombres = new Set([...Object.keys(CONFIG.turnos), ...cachePersonas.map(p=>p.responsable)]);
     document.getElementById('nombresList').innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
+    loadDiasCargados();
   }
 }
 
@@ -733,13 +729,12 @@ function renderChartAndTable(){
 }
 
 // ============================================================
-// Resumen general (cruza los 3 procesos)
+// Resumen general (cruza los 3 procesos, con filtro)
 // ============================================================
 let cacheHistoricoPorProceso = { recepcion:[], etiquetado:[], anclaje:[] };
 
 async function loadResumen(){
-  const body = document.getElementById('resumenBody');
-  body.innerHTML = '<tr><td colspan="5" class="empty-state">Cargando…</td></tr>';
+  document.getElementById('resumenTopsWrap').innerHTML = '<div class="empty-state">Cargando…</div>';
   try{
     const results = await Promise.all(Object.keys(PROCESOS).map(key =>
       supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3 })
@@ -751,45 +746,74 @@ async function loadResumen(){
   renderResumen();
 }
 
+function top5TableHtml(rows, titulo, subtitulo){
+  const body = rows.slice(0,5).map((r,i)=>
+    `<tr><td class="num">${i+1}</td><td class="placa">${r.responsable}</td><td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td></tr>`
+  ).join('') || '<tr><td colspan="3" class="empty-state">Sin data</td></tr>';
+  return `<div class="card">
+    <div class="card-title">${titulo}</div>
+    <div class="card-sub">${subtitulo}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Responsable</th><th style="text-align:right">Productividad</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderResumen(){
+  const filtro = document.getElementById('resumenProceso').value;
   const combinado = [...cacheHistoricoPorProceso.recepcion, ...cacheHistoricoPorProceso.etiquetado, ...cacheHistoricoPorProceso.anclaje];
-  const body = document.getElementById('resumenBody');
-  const top5Body = document.getElementById('resTop5Body');
-  body.innerHTML = ''; top5Body.innerHTML = '';
+  const wrap = document.getElementById('resumenTopsWrap');
 
   if(combinado.length===0){
-    body.innerHTML = '<tr><td colspan="5" class="empty-state">Todavía no hay data — sube archivos desde Configuración.</td></tr>';
+    wrap.innerHTML = '<div class="card"><div class="empty-state">Todavía no hay data — sube archivos desde Configuración.</div></div>';
     document.getElementById('narrativaResumen').textContent = 'Sin datos suficientes todavía.';
     ['resTotal','resResp','resTop'].forEach(id=> document.getElementById(id).textContent = '—');
     document.getElementById('resTopName').textContent = '—';
     return;
   }
 
-  const totalPedidos = combinado.reduce((a,r)=>a+Number(r.total_pedidos),0);
-  const respUnicos = new Set(combinado.map(r=>r.responsable)).size;
-  const ordenado = combinado.slice().sort((a,b)=> b.productividad_promedio - a.productividad_promedio);
-  const top = ordenado[0];
+  const conjunto = filtro==='TODOS' ? combinado : combinado.filter(r=>r.proceso===filtro);
+  const totalPedidos = conjunto.reduce((a,r)=>a+Number(r.total_pedidos),0);
+  const respUnicos = new Set(conjunto.map(r=>r.responsable)).size;
 
+  document.getElementById('resTotalSub').textContent = filtro==='TODOS' ? 'suma de los 3 procesos' : PROCESOS[filtro].label;
+
+  if(conjunto.length===0){
+    document.getElementById('resTotal').textContent = '0';
+    document.getElementById('resResp').textContent = '0';
+    document.getElementById('resTop').textContent = '—';
+    document.getElementById('resTopName').textContent = 'sin data para este proceso';
+    wrap.innerHTML = '<div class="card"><div class="empty-state">Sin data para este proceso todavía.</div></div>';
+    document.getElementById('narrativaResumen').textContent = 'Sin datos suficientes para este filtro.';
+    return;
+  }
+
+  const ordenado = conjunto.slice().sort((a,b)=> b.productividad_promedio - a.productividad_promedio);
+  const top = ordenado[0];
   document.getElementById('resTotal').textContent = totalPedidos.toLocaleString('es-PE');
   document.getElementById('resResp').textContent = respUnicos;
   document.getElementById('resTop').textContent = Number(top.productividad_promedio).toFixed(1) + '/h';
-  document.getElementById('resTopName').textContent = `${top.responsable} · ${PROCESOS[top.proceso].label}`;
-  document.getElementById('narrativaResumen').textContent =
-    `Entre los 3 procesos hay ${respUnicos} responsables con historial. ${top.responsable} tiene la mejor marca general: ${Number(top.productividad_promedio).toFixed(1)} pedidos/hora en ${PROCESOS[top.proceso].label.toLowerCase()}.`;
+  document.getElementById('resTopName').textContent = filtro==='TODOS' ? `${top.responsable} · ${PROCESOS[top.proceso].label}` : top.responsable;
+  document.getElementById('narrativaResumen').textContent = filtro==='TODOS'
+    ? `Entre los 3 procesos hay ${respUnicos} responsables con historial. ${top.responsable} tiene la mejor marca general: ${Number(top.productividad_promedio).toFixed(1)} pedidos/hora en ${PROCESOS[top.proceso].label.toLowerCase()}.`
+    : `${respUnicos} responsables con historial en ${PROCESOS[filtro].label.toLowerCase()}. ${top.responsable} lidera con ${Number(top.productividad_promedio).toFixed(1)} pedidos/hora.`;
 
-  ordenado.slice(0,5).forEach((r,i)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="num">${i+1}</td><td class="placa">${r.responsable}</td><td>${PROCESOS[r.proceso].label}</td><td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
-    top5Body.appendChild(tr);
-  });
+  if(filtro !== 'TODOS'){
+    wrap.innerHTML = top5TableHtml(ordenado, `Top 5 · ${PROCESOS[filtro].label}`, 'Mejor productividad promedio en este proceso');
+    return;
+  }
 
-  ordenado.forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="placa">${r.responsable}</td><td>${PROCESOS[r.proceso].label}</td>
-      <td class="num">${r.dias_trabajados}</td><td class="num">${r.total_pedidos}</td>
-      <td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
-    body.appendChild(tr);
-  });
+  const combinadoOrdenado = combinado.slice().sort((a,b)=> b.productividad_promedio - a.productividad_promedio);
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid; grid-template-columns:repeat(2,1fr); gap:16px';
+  grid.innerHTML = top5TableHtml(combinadoOrdenado, 'Top 5 · General', 'Cruzando los 3 procesos')
+    + Object.keys(PROCESOS).map(key=>{
+        const rows = cacheHistoricoPorProceso[key].slice().sort((a,b)=>b.productividad_promedio-a.productividad_promedio);
+        return top5TableHtml(rows, `Top 5 · ${PROCESOS[key].label}`, 'Mejor productividad promedio en este proceso');
+      }).join('');
+  wrap.innerHTML = '';
+  wrap.appendChild(grid);
 }
 
 // ============================================================
@@ -835,15 +859,25 @@ function renderTendencia(){
   });
 
   let pathD = '';
-  cacheTendencia.forEach((r,i)=>{
-    const x=xFor(i), y=yFor(Number(r.productividad_promedio));
-    pathD += (i===0?'M':'L') + x + ',' + y + ' ';
-  });
-  chart.appendChild(el('path',{d:pathD, fill:'none', stroke:'#7C5CFC', 'stroke-width':2.5}));
+  const points = cacheTendencia.map((r,i)=>({x:xFor(i), y:yFor(Number(r.productividad_promedio))}));
+  if(points.length===1){
+    pathD = `M ${points[0].x},${points[0].y}`;
+  } else {
+    pathD = `M ${points[0].x},${points[0].y} `;
+    for(let i=0;i<points.length-1;i++){
+      const p0=points[i], p1=points[i+1];
+      const midX=(p0.x+p1.x)/2, midY=(p0.y+p1.y)/2;
+      pathD += `Q ${p0.x},${p0.y} ${midX},${midY} `;
+    }
+    pathD += `T ${points[points.length-1].x},${points[points.length-1].y}`;
+  }
+  chart.appendChild(el('path',{d:pathD, fill:'none', stroke:'#7C5CFC', 'stroke-width':2, opacity:0.9}));
 
   cacheTendencia.forEach((r,i)=>{
     const x=xFor(i), y=yFor(Number(r.productividad_promedio));
-    const dot = el('circle',{cx:x, cy:y, r:4, fill:'#7C5CFC'});
+    const glow = el('circle',{cx:x, cy:y, r:7, fill:'#7C5CFC', opacity:0.15});
+    chart.appendChild(glow);
+    const dot = el('circle',{cx:x, cy:y, r:3, fill:'var(--bg-deep)', stroke:'#7C5CFC', 'stroke-width':2});
     const title = el('title',{}); title.textContent = `${r.fecha}: ${r.productividad_promedio}/h (${r.total_pedidos} pedidos, ${r.n_responsables} personas)`;
     dot.appendChild(title);
     chart.appendChild(dot);
@@ -871,6 +905,7 @@ async function renderEstimadorLabel(){
 async function calcularTiempo(){
   const proceso = document.getElementById('estimadorProceso').value;
   const pedidos = parseInt(document.getElementById('calcPedidos').value);
+  const personas = Math.max(1, parseInt(document.getElementById('calcPersonas').value) || 1);
   const modo = document.getElementById('calcRitmo').value;
   const resultEl = document.getElementById('calcResultado');
   const subEl = document.getElementById('calcSub');
@@ -890,11 +925,12 @@ async function calcularTiempo(){
   } else {
     ritmo = historico.reduce((a,r)=>a+Number(r.productividad_promedio),0) / historico.length;
   }
-  const horas = pedidos/ritmo;
+  const ritmoEquipo = ritmo * personas;
+  const horas = pedidos/ritmoEquipo;
   const horasEnt = Math.floor(horas);
   const minRest = Math.round((horas-horasEnt)*60);
   resultEl.textContent = `${horasEnt}h ${minRest}min`;
-  subEl.textContent = `con 1 persona, a ${ritmo.toFixed(1)} pedidos/hora (${PROCESOS[proceso].label.toLowerCase()})`;
+  subEl.textContent = `con ${personas} persona${personas>1?'s':''} (${ritmo.toFixed(1)} pedidos/h c/u = ${ritmoEquipo.toFixed(1)}/h en total, ${PROCESOS[proceso].label.toLowerCase()})`;
 }
 
 
@@ -951,6 +987,33 @@ function renderMinimosTable(){
     tdEdit.appendChild(input);
     body.appendChild(tr);
   });
+}
+
+async function loadDiasCargados(){
+  const wrap = document.getElementById('diasCargadosWrap');
+  wrap.textContent = 'Cargando…';
+  try{
+    const results = await Promise.all(Object.keys(PROCESOS).map(key => supa.rpc('fechas_disponibles', { p_proceso: key })));
+    wrap.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid; grid-template-columns:repeat(3,1fr); gap:14px';
+    Object.keys(PROCESOS).forEach((key,i)=>{
+      const data = results[i].data || [];
+      const box = document.createElement('div');
+      const rows = data.length===0
+        ? '<div class="empty-state" style="padding:12px 0">Sin data</div>'
+        : data.map(r=>`<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:11.5px;">
+            <span>${new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'})}</span>
+            <span style="color:var(--text-secondary)">${r.total}</span>
+          </div>`).join('');
+      box.innerHTML = `<div class="card-title" style="font-size:13px; margin-bottom:8px">${PROCESOS[key].label}</div>${rows}`;
+      grid.appendChild(box);
+    });
+    wrap.appendChild(grid);
+  } catch(err){
+    console.error(err);
+    wrap.textContent = 'Error al cargar.';
+  }
 }
 
 // ============================================================
