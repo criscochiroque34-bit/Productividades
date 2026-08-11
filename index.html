@@ -152,7 +152,6 @@
   <div class="tabs">
     <button class="tab active" data-tab="personas">Por responsable</button>
     <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
-    <button class="tab" data-tab="historico">Resumen histórico</button>
   </div>
 
   <div id="view-personas">
@@ -199,21 +198,73 @@
 
   <div class="footnote" id="footnote"></div>
 
-  <div id="view-historico" style="display:none">
+  <div id="view-resumen" style="display:none">
     <div class="card">
-      <div class="card-title">Resumen histórico</div>
-      <div class="card-sub" id="narrativaHistorico">Calculando…</div>
+      <div class="card-title">Resumen general — los 3 procesos</div>
+      <div class="card-sub" id="narrativaResumen">Calculando…</div>
       <div class="kpis" style="margin-bottom:0">
-        <div class="kpi"><div class="kpi-label">Días con data</div><div class="kpi-value" id="histDias">—</div><div class="kpi-sub">disponibles para este proceso</div></div>
-        <div class="kpi"><div class="kpi-label">Pedidos históricos</div><div class="kpi-value" id="histTotal">—</div><div class="kpi-sub">acumulado de todos los días</div></div>
-        <div class="kpi"><div class="kpi-label">Productividad del equipo</div><div class="kpi-value accent" id="histEquipo">—</div><div class="kpi-sub">promedio ponderado por volumen</div></div>
-        <div class="kpi"><div class="kpi-label">Top histórico</div><div class="kpi-value accent" id="histTop">—</div><div class="kpi-sub" id="histTopName">—</div></div>
+        <div class="kpi"><div class="kpi-label">Pedidos históricos</div><div class="kpi-value" id="resTotal">—</div><div class="kpi-sub">suma de los 3 procesos</div></div>
+        <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value" id="resResp">—</div><div class="kpi-sub">personas únicas con data</div></div>
+        <div class="kpi"><div class="kpi-label">Top absoluto</div><div class="kpi-value accent" id="resTop">—</div><div class="kpi-sub" id="resTopName">—</div></div>
       </div>
     </div>
+    <div class="card">
+      <div class="card-title">Top 5</div>
+      <div class="card-sub">Mejor productividad promedio, cruzando los 3 procesos</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Responsable</th><th>Proceso</th><th style="text-align:right">Productividad promedio</th></tr></thead>
+          <tbody id="resTop5Body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Ranking completo</div>
+      <div class="card-sub">Todos los responsables con data, ordenado por productividad promedio</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Responsable</th><th>Proceso</th><th style="text-align:right">Días trabajados</th><th style="text-align:right">Pedidos totales</th><th style="text-align:right">Productividad promedio</th></tr></thead>
+          <tbody id="resumenBody"><tr><td colspan="5" class="empty-state">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
+  <div id="view-tendencia" style="display:none">
+    <div class="card">
+      <div class="card-title">Tendencia de productividad</div>
+      <div class="card-sub">Promedio simple del equipo por día · elige el proceso</div>
+      <div class="controls" style="margin-bottom:16px">
+        <select id="tendenciaProceso">
+          <option value="recepcion">Recepción</option>
+          <option value="etiquetado">Etiquetado</option>
+          <option value="anclaje">Anclaje</option>
+        </select>
+      </div>
+      <svg id="tendenciaChart" viewBox="0 0 1000 280"></svg>
+    </div>
+    <div class="card">
+      <div class="card-title">Detalle por día</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Responsables activos</th><th style="text-align:right">Productividad promedio</th></tr></thead>
+          <tbody id="tendenciaBody"><tr><td colspan="4" class="empty-state">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-estimador" style="display:none">
     <div class="card">
       <div class="card-title">¿Cuánto nos demoraríamos?</div>
-      <div class="card-sub">Estima el tiempo de recepción/etiquetado/anclaje según el ritmo real del equipo — útil para planificar campañas o picos de demanda</div>
+      <div class="card-sub">Estima el tiempo según el ritmo real histórico del equipo — útil para planificar campañas o picos de demanda</div>
+      <div class="controls" style="margin-bottom:16px">
+        <select id="estimadorProceso">
+          <option value="recepcion">Recepción</option>
+          <option value="etiquetado">Etiquetado</option>
+          <option value="anclaje">Anclaje</option>
+        </select>
+      </div>
       <div class="controls" style="flex-wrap:wrap; gap:10px">
         <input type="number" id="calcPedidos" placeholder="Cantidad de pedidos" style="width:180px" min="1">
         <select id="calcRitmo">
@@ -221,18 +272,11 @@
           <option value="top">Al ritmo del top performer</option>
         </select>
         <button class="btn" id="calcBtn">Calcular</button>
-        <span class="kpi-value accent" id="calcResultado" style="font-size:20px"></span>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Ranking histórico por responsable</div>
-      <div class="card-sub">Ordenado por productividad ponderada · si "ponderada" y "simple" difieren mucho, esa persona tuvo días muy inconsistentes entre sí</div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Responsable</th><th style="text-align:right">Días</th><th style="text-align:right">Pedidos totales</th><th style="text-align:right">Prod. ponderada</th><th style="text-align:right">Prod. promedio simple</th><th>Mejor día</th><th>Peor día</th></tr></thead>
-          <tbody id="historicoBody"><tr><td colspan="7" class="empty-state">Cargando…</td></tr></tbody>
-        </table>
+      <div class="kpi" style="margin-top:16px; max-width:320px">
+        <div class="kpi-label">Tiempo estimado</div>
+        <div class="kpi-value accent" id="calcResultado">—</div>
+        <div class="kpi-sub" id="calcSub">ingresa una cantidad de pedidos</div>
       </div>
     </div>
   </div>
@@ -319,7 +363,6 @@ let currentFecha = null;
 let CONFIG = { turnos: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
 let cachePersonas = [];
 let cacheHoraData = [];
-let cacheHistorico = [];
 
 const svgNS = "http://www.w3.org/2000/svg";
 function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
@@ -340,17 +383,17 @@ async function init(){
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
   document.querySelectorAll('.tab').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
+    btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       document.getElementById('view-personas').style.display = tab==='personas' ? 'block' : 'none';
       document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
-      document.getElementById('view-historico').style.display = tab==='historico' ? 'block' : 'none';
-      if(tab==='historico') await loadHistorico();
     });
   });
   document.getElementById('calcBtn').addEventListener('click', calcularTiempo);
+  document.getElementById('tendenciaProceso').addEventListener('change', loadTendencia);
+  document.getElementById('estimadorProceso').addEventListener('change', renderEstimadorLabel);
   await loadProceso();
 }
 
@@ -405,43 +448,63 @@ function renderProcesoSelector(){
   wrap.innerHTML = '';
   Object.entries(PROCESOS).forEach(([key, p])=>{
     const btn = document.createElement('button');
-    btn.className = 'proceso-btn' + (key===currentProceso && currentView!=='config' ? ' active' : '');
+    btn.className = 'proceso-btn' + (key===currentProceso && currentView==='dashboard' ? ' active' : '');
     btn.textContent = p.label;
     btn.addEventListener('click', async ()=>{ currentProceso = key; currentView='dashboard'; await loadFechas(); await loadProceso(); });
     wrap.appendChild(btn);
   });
-  const configBtn = document.createElement('button');
-  configBtn.className = 'proceso-btn' + (currentView==='config' ? ' active' : '');
-  configBtn.textContent = '⚙ Configuración';
-  configBtn.addEventListener('click', ()=>{ currentView='config'; renderView(); });
-  wrap.appendChild(configBtn);
+  const extras = [
+    ['resumen', '📊 Resumen'],
+    ['tendencia', '📈 Tendencia'],
+    ['estimador', '⏱ Estimador'],
+    ['config', '⚙ Configuración']
+  ];
+  extras.forEach(([key,label])=>{
+    const btn = document.createElement('button');
+    btn.className = 'proceso-btn' + (currentView===key ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', ()=>{ currentView = key; renderView(); });
+    wrap.appendChild(btn);
+  });
 }
 
 let currentView = 'dashboard';
 
-function renderView(){
-  renderProcesoSelector();
-  const isConfig = currentView === 'config';
-  document.querySelector('.kpis').style.display = isConfig ? 'none' : 'grid';
-  document.querySelector('.tabs').style.display = isConfig ? 'none' : 'flex';
-  document.getElementById('view-personas').style.display = isConfig ? 'none' : 'block';
-  document.getElementById('view-dim').style.display = 'none';
-  document.getElementById('footnote').style.display = isConfig ? 'none' : 'block';
-  document.getElementById('view-config').style.display = isConfig ? 'block' : 'none';
-  document.getElementById('fechaSelector').style.display = isConfig ? 'none' : 'inline-block';
+function hideAllViews(){
+  ['view-personas','view-dim','view-resumen','view-tendencia','view-estimador','view-config'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
+  });
+}
 
-  if(isConfig){
-    document.getElementById('eyebrow').textContent = 'Configuración';
-    document.getElementById('mainTitle').textContent = 'Ajustes del dashboard';
-    document.getElementById('subtitle').textContent = 'Turnos, mínimos y carga de archivos';
-    renderTurnosTable();
-    renderMinimosTable();
-    const datalist = document.getElementById('nombresList');
-    const nombres = new Set([...Object.keys(CONFIG.turnos), ...cachePersonas.map(p=>p.responsable)]);
-    datalist.innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
-  } else {
+async function renderView(){
+  renderProcesoSelector();
+  hideAllViews();
+  const kpisEl = document.querySelector('.kpis');
+  const tabsEl = document.querySelector('.tabs');
+  const fechaSel = document.getElementById('fechaSelector');
+  const footnote = document.getElementById('footnote');
+
+  if(currentView === 'dashboard'){
+    kpisEl.style.display = 'grid'; tabsEl.style.display = 'flex'; fechaSel.style.display = 'inline-block'; footnote.style.display = 'block';
+    document.getElementById('view-personas').style.display = 'block';
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelector('.tab[data-tab="personas"]').classList.add('active');
+    return;
+  }
+
+  kpisEl.style.display = 'none'; tabsEl.style.display = 'none'; fechaSel.style.display = 'none'; footnote.style.display = 'none';
+  document.getElementById('eyebrow').textContent = { resumen:'Resumen general', tendencia:'Tendencia', estimador:'Estimador', config:'Configuración' }[currentView];
+  document.getElementById('mainTitle').textContent = { resumen:'Resumen general', tendencia:'Tendencia de productividad', estimador:'¿Cuánto nos demoraríamos?', config:'Ajustes del dashboard' }[currentView];
+  document.getElementById('subtitle').textContent = { resumen:'Los 3 procesos, un solo ranking', tendencia:'Cómo evoluciona el ritmo del equipo', estimador:'Planifica según el ritmo real', config:'Turnos, mínimos y carga de archivos' }[currentView];
+
+  if(currentView === 'resumen'){ document.getElementById('view-resumen').style.display = 'block'; await loadResumen(); }
+  if(currentView === 'tendencia'){ document.getElementById('view-tendencia').style.display = 'block'; await loadTendencia(); }
+  if(currentView === 'estimador'){ document.getElementById('view-estimador').style.display = 'block'; renderEstimadorLabel(); }
+  if(currentView === 'config'){
+    document.getElementById('view-config').style.display = 'block';
+    renderTurnosTable(); renderMinimosTable();
+    const nombres = new Set([...Object.keys(CONFIG.turnos), ...cachePersonas.map(p=>p.responsable)]);
+    document.getElementById('nombresList').innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
   }
 }
 
@@ -670,80 +733,168 @@ function renderChartAndTable(){
 }
 
 // ============================================================
-// Resumen histórico (multi-día) + calculadora
+// Resumen general (cruza los 3 procesos)
 // ============================================================
-async function loadHistorico(){
-  const body = document.getElementById('historicoBody');
-  body.innerHTML = '<tr><td colspan="7" class="empty-state">Cargando…</td></tr>';
+let cacheHistoricoPorProceso = { recepcion:[], etiquetado:[], anclaje:[] };
+
+async function loadResumen(){
+  const body = document.getElementById('resumenBody');
+  body.innerHTML = '<tr><td colspan="5" class="empty-state">Cargando…</td></tr>';
   try{
-    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3 });
-    if(error) throw error;
-    cacheHistorico = data || [];
-  } catch(err){ console.error(err); cacheHistorico = []; }
-  renderHistorico();
+    const results = await Promise.all(Object.keys(PROCESOS).map(key =>
+      supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3 })
+    ));
+    Object.keys(PROCESOS).forEach((key,i)=>{
+      cacheHistoricoPorProceso[key] = (results[i].data || []).map(r => ({...r, proceso: key}));
+    });
+  } catch(err){ console.error(err); }
+  renderResumen();
 }
 
-function renderHistorico(){
-  const body = document.getElementById('historicoBody');
-  body.innerHTML = '';
-  if(cacheHistorico.length===0){
-    body.innerHTML = '<tr><td colspan="7" class="empty-state">Todavía no hay suficiente data histórica — sube más días desde Configuración.</td></tr>';
-    document.getElementById('narrativaHistorico').textContent = 'Sin datos suficientes todavía.';
-    ['histDias','histTotal','histEquipo','histTop'].forEach(id=> document.getElementById(id).textContent = '—');
-    document.getElementById('histTopName').textContent = '—';
+function renderResumen(){
+  const combinado = [...cacheHistoricoPorProceso.recepcion, ...cacheHistoricoPorProceso.etiquetado, ...cacheHistoricoPorProceso.anclaje];
+  const body = document.getElementById('resumenBody');
+  const top5Body = document.getElementById('resTop5Body');
+  body.innerHTML = ''; top5Body.innerHTML = '';
+
+  if(combinado.length===0){
+    body.innerHTML = '<tr><td colspan="5" class="empty-state">Todavía no hay data — sube archivos desde Configuración.</td></tr>';
+    document.getElementById('narrativaResumen').textContent = 'Sin datos suficientes todavía.';
+    ['resTotal','resResp','resTop'].forEach(id=> document.getElementById(id).textContent = '—');
+    document.getElementById('resTopName').textContent = '—';
     return;
   }
 
-  const totalPedidos = cacheHistorico.reduce((a,r)=> a+Number(r.total_pedidos), 0);
-  const totalDurMin = cacheHistorico.reduce((a,r)=> a+Number(r.duracion_activa_total_min), 0);
-  const equipoPonderado = totalPedidos / (totalDurMin/60);
-  const diasMax = Math.max(...cacheHistorico.map(r=>Number(r.dias_trabajados)));
-  const top = cacheHistorico.reduce((a,b)=> b.productividad_ponderada > a.productividad_ponderada ? b : a);
+  const totalPedidos = combinado.reduce((a,r)=>a+Number(r.total_pedidos),0);
+  const respUnicos = new Set(combinado.map(r=>r.responsable)).size;
+  const ordenado = combinado.slice().sort((a,b)=> b.productividad_promedio - a.productividad_promedio);
+  const top = ordenado[0];
 
-  document.getElementById('histDias').textContent = diasMax;
-  document.getElementById('histTotal').textContent = totalPedidos.toLocaleString('es-PE');
-  document.getElementById('histEquipo').textContent = equipoPonderado.toFixed(1) + '/h';
-  document.getElementById('histTop').textContent = Number(top.productividad_ponderada).toFixed(1) + '/h';
-  document.getElementById('histTopName').textContent = top.responsable;
+  document.getElementById('resTotal').textContent = totalPedidos.toLocaleString('es-PE');
+  document.getElementById('resResp').textContent = respUnicos;
+  document.getElementById('resTop').textContent = Number(top.productividad_promedio).toFixed(1) + '/h';
+  document.getElementById('resTopName').textContent = `${top.responsable} · ${PROCESOS[top.proceso].label}`;
+  document.getElementById('narrativaResumen').textContent =
+    `Entre los 3 procesos hay ${respUnicos} responsables con historial. ${top.responsable} tiene la mejor marca general: ${Number(top.productividad_promedio).toFixed(1)} pedidos/hora en ${PROCESOS[top.proceso].label.toLowerCase()}.`;
 
-  const pctSobrePromedio = ((Number(top.productividad_ponderada) / equipoPonderado) - 1) * 100;
-  document.getElementById('narrativaHistorico').textContent =
-    `Con datos de ${diasMax} día(s), el equipo de ${PROCESOS[currentProceso].label.toLowerCase()} procesa en promedio ${equipoPonderado.toFixed(1)} pedidos/hora (ponderado por volumen real, no un promedio simple de cada día). ${top.responsable} lidera con ${Number(top.productividad_ponderada).toFixed(1)}/h — un ${pctSobrePromedio.toFixed(0)}% por encima del promedio del equipo.`;
-
-  cacheHistorico.forEach(r=>{
-    const divergePct = Math.abs(Number(r.productividad_ponderada) - Number(r.productividad_promedio_simple)) / Number(r.productividad_ponderada) * 100;
-    const flag = divergePct > 20 ? ' ⚠' : '';
+  ordenado.slice(0,5).forEach((r,i)=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="placa">${r.responsable}${flag}</td>
-      <td class="num">${r.dias_trabajados}</td>
-      <td class="num">${r.total_pedidos}</td>
-      <td class="num" style="color:var(--positive)">${Number(r.productividad_ponderada).toFixed(1)}/h</td>
-      <td class="num">${Number(r.productividad_promedio_simple).toFixed(1)}/h</td>
-      <td>${r.mejor_dia} <span style="color:var(--text-muted)">(${Number(r.mejor_dia_valor).toFixed(0)}/h)</span></td>
-      <td>${r.peor_dia} <span style="color:var(--text-muted)">(${Number(r.peor_dia_valor).toFixed(0)}/h)</span></td>`;
+    tr.innerHTML = `<td class="num">${i+1}</td><td class="placa">${r.responsable}</td><td>${PROCESOS[r.proceso].label}</td><td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
+    top5Body.appendChild(tr);
+  });
+
+  ordenado.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="placa">${r.responsable}</td><td>${PROCESOS[r.proceso].label}</td>
+      <td class="num">${r.dias_trabajados}</td><td class="num">${r.total_pedidos}</td>
+      <td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
     body.appendChild(tr);
   });
 }
 
-function calcularTiempo(){
+// ============================================================
+// Tendencia (línea de tiempo)
+// ============================================================
+let cacheTendencia = [];
+
+async function loadTendencia(){
+  const proceso = document.getElementById('tendenciaProceso').value;
+  try{
+    const { data, error } = await supa.rpc('tendencia_diaria', { p_proceso: proceso, p_umbral_min: 3 });
+    if(error) throw error;
+    cacheTendencia = data || [];
+  } catch(err){ console.error(err); cacheTendencia = []; }
+  renderTendencia();
+}
+
+function renderTendencia(){
+  const chart = document.getElementById('tendenciaChart');
+  const body = document.getElementById('tendenciaBody');
+  chart.innerHTML = ''; body.innerHTML = '';
+
+  if(cacheTendencia.length===0){
+    body.innerHTML = '<tr><td colspan="4" class="empty-state">Sin datos para este proceso todavía.</td></tr>';
+    return;
+  }
+
+  const W=1000,H=280,padL=40,padB=30,padT=16,padR=16;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const n = cacheTendencia.length;
+  const values = cacheTendencia.map(r=>Number(r.productividad_promedio));
+  const max = Math.max(...values)*1.1;
+  const min = 0;
+  const stepX = n>1 ? plotW/(n-1) : 0;
+  const xFor = i => padL + i*stepX;
+  const yFor = v => padT + plotH*(1-(v-min)/(max-min));
+
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y = padT+plotH*(1-f);
+    chart.appendChild(el('line',{x1:padL,x2:W-padR,y1:y,y2:y,class:'gridline'}));
+    const t = el('text',{x:padL-8,y:y+3,class:'axis-label','text-anchor':'end'}); t.textContent = Math.round(max*f);
+    chart.appendChild(t);
+  });
+
+  let pathD = '';
+  cacheTendencia.forEach((r,i)=>{
+    const x=xFor(i), y=yFor(Number(r.productividad_promedio));
+    pathD += (i===0?'M':'L') + x + ',' + y + ' ';
+  });
+  chart.appendChild(el('path',{d:pathD, fill:'none', stroke:'#7C5CFC', 'stroke-width':2.5}));
+
+  cacheTendencia.forEach((r,i)=>{
+    const x=xFor(i), y=yFor(Number(r.productividad_promedio));
+    const dot = el('circle',{cx:x, cy:y, r:4, fill:'#7C5CFC'});
+    const title = el('title',{}); title.textContent = `${r.fecha}: ${r.productividad_promedio}/h (${r.total_pedidos} pedidos, ${r.n_responsables} personas)`;
+    dot.appendChild(title);
+    chart.appendChild(dot);
+    const label = el('text',{x, y:H-8, class:'axis-label','text-anchor':'middle'});
+    label.textContent = new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit'});
+    chart.appendChild(label);
+  });
+
+  cacheTendencia.slice().reverse().forEach(r=>{
+    const tr = document.createElement('tr');
+    const fechaFmt = new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'});
+    tr.innerHTML = `<td class="placa">${fechaFmt}</td><td class="num">${r.total_pedidos}</td><td class="num">${r.n_responsables}</td><td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
+    body.appendChild(tr);
+  });
+}
+
+// ============================================================
+// Estimador
+// ============================================================
+async function renderEstimadorLabel(){
+  document.getElementById('calcResultado').textContent = '—';
+  document.getElementById('calcSub').textContent = 'ingresa una cantidad de pedidos';
+}
+
+async function calcularTiempo(){
+  const proceso = document.getElementById('estimadorProceso').value;
   const pedidos = parseInt(document.getElementById('calcPedidos').value);
   const modo = document.getElementById('calcRitmo').value;
   const resultEl = document.getElementById('calcResultado');
-  if(!pedidos || pedidos<=0 || cacheHistorico.length===0){ resultEl.textContent = ''; return; }
+  const subEl = document.getElementById('calcSub');
+  if(!pedidos || pedidos<=0){ resultEl.textContent='—'; subEl.textContent='ingresa una cantidad válida'; return; }
+
+  let historico = cacheHistoricoPorProceso[proceso];
+  if(!historico || historico.length===0){
+    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: proceso, p_umbral_min: 3 });
+    historico = error ? [] : (data||[]);
+    cacheHistoricoPorProceso[proceso] = historico.map(r=>({...r, proceso}));
+  }
+  if(historico.length===0){ resultEl.textContent='—'; subEl.textContent='sin data histórica para este proceso todavía'; return; }
 
   let ritmo;
   if(modo==='top'){
-    const top = cacheHistorico.reduce((a,b)=> b.productividad_ponderada > a.productividad_ponderada ? b : a);
-    ritmo = Number(top.productividad_ponderada);
+    ritmo = Math.max(...historico.map(r=>Number(r.productividad_promedio)));
   } else {
-    const totalPedidos = cacheHistorico.reduce((a,r)=> a+Number(r.total_pedidos), 0);
-    const totalDurMin = cacheHistorico.reduce((a,r)=> a+Number(r.duracion_activa_total_min), 0);
-    ritmo = totalPedidos / (totalDurMin/60);
+    ritmo = historico.reduce((a,r)=>a+Number(r.productividad_promedio),0) / historico.length;
   }
-  const horas = pedidos / ritmo;
+  const horas = pedidos/ritmo;
   const horasEnt = Math.floor(horas);
   const minRest = Math.round((horas-horasEnt)*60);
-  resultEl.textContent = `≈ ${horasEnt}h ${minRest}min (a ${ritmo.toFixed(1)} pedidos/h, con 1 persona)`;
+  resultEl.textContent = `${horasEnt}h ${minRest}min`;
+  subEl.textContent = `con 1 persona, a ${ritmo.toFixed(1)} pedidos/hora (${PROCESOS[proceso].label.toLowerCase()})`;
 }
 
 
@@ -803,13 +954,16 @@ function renderMinimosTable(){
 }
 
 // ============================================================
-// Carga de archivos (SheetJS -> Supabase)
+// Carga de archivos (SheetJS -> staging -> Supabase con botón único)
 // ============================================================
+let staged = { recepcion: null, etiquetado: null, anclaje: null };
+
 function renderDropzones(){
   const wrap = document.getElementById('dropzonesWrap');
   wrap.innerHTML = '';
   Object.entries(PROCESOS).forEach(([key,proc])=>{
     const box = document.createElement('div');
+    box.style.marginBottom = '14px';
     box.innerHTML = `
       <div class="dropzone" id="dz-${key}">
         <strong>${proc.label}</strong> — arrastra el Excel aquí o haz clic para seleccionar<br>
@@ -824,13 +978,33 @@ function renderDropzones(){
     dz.addEventListener('click', ()=> fileInput.click());
     dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('dragover'); });
     dz.addEventListener('dragleave', ()=> dz.classList.remove('dragover'));
-    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('dragover'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], key); });
-    fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], key); });
+    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('dragover'); if(e.dataTransfer.files[0]) stageFile(e.dataTransfer.files[0], key); });
+    fileInput.addEventListener('change', e=>{ if(e.target.files[0]) stageFile(e.target.files[0], key); });
   });
+
+  const saveWrap = document.createElement('div');
+  saveWrap.style.cssText = 'margin-top:12px; display:flex; align-items:center; gap:12px';
+  saveWrap.innerHTML = `
+    <button class="btn" id="guardarCambiosBtn" disabled>💾 Guardar cambios</button>
+    <span id="guardarResumen" style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted)">Selecciona al menos un archivo para habilitar</span>
+  `;
+  wrap.appendChild(saveWrap);
+  document.getElementById('guardarCambiosBtn').addEventListener('click', guardarTodo);
 }
 
-async function handleFile(file, procesoKey){
+function actualizarBotonGuardar(){
+  const listos = Object.entries(staged).filter(([k,v])=>v);
+  const btn = document.getElementById('guardarCambiosBtn');
+  const resumen = document.getElementById('guardarResumen');
+  btn.disabled = listos.length === 0;
+  resumen.textContent = listos.length === 0
+    ? 'Selecciona al menos un archivo para habilitar'
+    : listos.map(([k,v])=> `${PROCESOS[k].label}: ${v.length} filas`).join(' · ');
+}
+
+async function stageFile(file, procesoKey){
   const statusEl = document.getElementById(`status-${procesoKey}`);
+  const dz = document.getElementById(`dz-${procesoKey}`);
   statusEl.className = 'upload-status show loading';
   statusEl.textContent = 'Leyendo archivo…';
   try{
@@ -856,28 +1030,63 @@ async function handleFile(file, procesoKey){
     if(rows.length === 0){
       statusEl.className = 'upload-status show error';
       statusEl.textContent = 'No se encontraron filas válidas — revisa que las columnas coincidan con las esperadas.';
+      staged[procesoKey] = null;
+      actualizarBotonGuardar();
       return;
     }
 
-    statusEl.textContent = `Subiendo ${rows.length} filas…`;
-    const CHUNK = 500;
-    let insertadas = 0;
-    for(let i=0; i<rows.length; i+=CHUNK){
-      const chunk = rows.slice(i, i+CHUNK);
-      const { error } = await supa.from('pistoleos').upsert(chunk, { onConflict:'proceso,codigo,fecha_hora', ignoreDuplicates:true });
-      if(error) throw error;
-      insertadas += chunk.length;
-    }
-
+    staged[procesoKey] = rows;
     statusEl.className = 'upload-status show ok';
-    statusEl.textContent = `Listo — ${rows.length} filas procesadas (duplicados exactos código+fecha se ignoran automáticamente).`;
-
-    if(procesoKey === currentProceso){ await loadFechas(); }
+    statusEl.textContent = `✓ ${file.name} — ${rows.length} filas listas para subir (todavía no se guardó).`;
+    dz.style.borderColor = 'var(--positive)';
+    actualizarBotonGuardar();
   } catch(err){
     console.error(err);
     statusEl.className = 'upload-status show error';
-    statusEl.textContent = 'Error al subir: ' + (err.message || err);
+    statusEl.textContent = 'Error al leer: ' + (err.message || err);
+    staged[procesoKey] = null;
+    actualizarBotonGuardar();
   }
+}
+
+async function guardarTodo(){
+  const btn = document.getElementById('guardarCambiosBtn');
+  const resumen = document.getElementById('guardarResumen');
+  const procesosAGuardar = Object.entries(staged).filter(([k,v])=>v);
+  if(procesosAGuardar.length===0) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  const resultados = [];
+
+  for(const [procesoKey, rows] of procesosAGuardar){
+    const statusEl = document.getElementById(`status-${procesoKey}`);
+    try{
+      statusEl.className = 'upload-status show loading';
+      statusEl.textContent = `Subiendo ${rows.length} filas…`;
+      const CHUNK = 500;
+      for(let i=0; i<rows.length; i+=CHUNK){
+        const chunk = rows.slice(i, i+CHUNK);
+        const { error } = await supa.from('pistoleos').upsert(chunk, { onConflict:'proceso,codigo,fecha_hora', ignoreDuplicates:true });
+        if(error) throw error;
+      }
+      statusEl.className = 'upload-status show ok';
+      statusEl.textContent = `Guardado — ${rows.length} filas procesadas.`;
+      resultados.push(`${PROCESOS[procesoKey].label}: ${rows.length} filas`);
+      staged[procesoKey] = null;
+      document.getElementById(`dz-${procesoKey}`).style.borderColor = '';
+    } catch(err){
+      console.error(err);
+      statusEl.className = 'upload-status show error';
+      statusEl.textContent = 'Error al subir: ' + (err.message || err);
+      resultados.push(`${PROCESOS[procesoKey].label}: ERROR`);
+    }
+  }
+
+  btn.textContent = '💾 Guardar cambios';
+  resumen.innerHTML = `<span style="color:var(--positive)">✅ Confirmado —</span> ${resultados.join(' · ')}`;
+  actualizarBotonGuardar();
+  if(procesosAGuardar.some(([k])=>k===currentProceso)) await loadFechas();
 }
 
 init();
