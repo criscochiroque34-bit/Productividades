@@ -152,12 +152,13 @@
   <div class="tabs">
     <button class="tab active" data-tab="personas">Por responsable</button>
     <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
+    <button class="tab" data-tab="historico">Resumen histórico</button>
   </div>
 
   <div id="view-personas">
     <div class="card">
       <div class="card-title">Productividad por responsable</div>
-      <div class="card-sub">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
+      <div class="card-sub" id="narrativaDia">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
       <div class="controls" style="margin-bottom:14px; flex-wrap:wrap">
         <select id="turnoFilter">
           <option value="TODOS">Turno: Todos</option>
@@ -197,6 +198,44 @@
   </div>
 
   <div class="footnote" id="footnote"></div>
+
+  <div id="view-historico" style="display:none">
+    <div class="card">
+      <div class="card-title">Resumen histórico</div>
+      <div class="card-sub" id="narrativaHistorico">Calculando…</div>
+      <div class="kpis" style="margin-bottom:0">
+        <div class="kpi"><div class="kpi-label">Días con data</div><div class="kpi-value" id="histDias">—</div><div class="kpi-sub">disponibles para este proceso</div></div>
+        <div class="kpi"><div class="kpi-label">Pedidos históricos</div><div class="kpi-value" id="histTotal">—</div><div class="kpi-sub">acumulado de todos los días</div></div>
+        <div class="kpi"><div class="kpi-label">Productividad del equipo</div><div class="kpi-value accent" id="histEquipo">—</div><div class="kpi-sub">promedio ponderado por volumen</div></div>
+        <div class="kpi"><div class="kpi-label">Top histórico</div><div class="kpi-value accent" id="histTop">—</div><div class="kpi-sub" id="histTopName">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">¿Cuánto nos demoraríamos?</div>
+      <div class="card-sub">Estima el tiempo de recepción/etiquetado/anclaje según el ritmo real del equipo — útil para planificar campañas o picos de demanda</div>
+      <div class="controls" style="flex-wrap:wrap; gap:10px">
+        <input type="number" id="calcPedidos" placeholder="Cantidad de pedidos" style="width:180px" min="1">
+        <select id="calcRitmo">
+          <option value="equipo">Al ritmo promedio del equipo</option>
+          <option value="top">Al ritmo del top performer</option>
+        </select>
+        <button class="btn" id="calcBtn">Calcular</button>
+        <span class="kpi-value accent" id="calcResultado" style="font-size:20px"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Ranking histórico por responsable</div>
+      <div class="card-sub">Ordenado por productividad ponderada · si "ponderada" y "simple" difieren mucho, esa persona tuvo días muy inconsistentes entre sí</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Responsable</th><th style="text-align:right">Días</th><th style="text-align:right">Pedidos totales</th><th style="text-align:right">Prod. ponderada</th><th style="text-align:right">Prod. promedio simple</th><th>Mejor día</th><th>Peor día</th></tr></thead>
+          <tbody id="historicoBody"><tr><td colspan="7" class="empty-state">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <div id="view-config" style="display:none">
     <div class="card">
@@ -280,6 +319,7 @@ let currentFecha = null;
 let CONFIG = { turnos: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
 let cachePersonas = [];
 let cacheHoraData = [];
+let cacheHistorico = [];
 
 const svgNS = "http://www.w3.org/2000/svg";
 function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
@@ -300,14 +340,17 @@ async function init(){
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
   document.querySelectorAll('.tab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', async ()=>{
       document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       document.getElementById('view-personas').style.display = tab==='personas' ? 'block' : 'none';
       document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
+      document.getElementById('view-historico').style.display = tab==='historico' ? 'block' : 'none';
+      if(tab==='historico') await loadHistorico();
     });
   });
+  document.getElementById('calcBtn').addEventListener('click', calcularTiempo);
   await loadProceso();
 }
 
@@ -489,12 +532,18 @@ function renderKPIs(){
     document.getElementById('kpiTop').textContent = '—';
     document.getElementById('kpiTopName').textContent = 'sin datos con este filtro';
     document.getElementById('kpiResp').textContent = 0;
+    document.getElementById('narrativaDia').textContent = 'Nadie cumple el filtro actual.';
     return;
   }
   const top = rows.reduce((a,b)=> b.productividad > a.productividad ? b : a);
   document.getElementById('kpiTop').textContent = Number(top.productividad).toFixed(1) + '/h';
   document.getElementById('kpiTopName').textContent = top.responsable;
   document.getElementById('kpiResp').textContent = rows.length;
+
+  const fechaFmt = new Date(currentFecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long'});
+  const promedioEquipo = rows.reduce((a,r)=>a+Number(r.productividad),0) / rows.length;
+  document.getElementById('narrativaDia').textContent =
+    `El ${fechaFmt}, el equipo de ${PROCESOS[currentProceso].label.toLowerCase()} procesó ${totalPistoleos.toLocaleString('es-PE')} pedidos entre ${rows.length} responsables (promedio de ${promedioEquipo.toFixed(1)}/h). ${top.responsable} lideró el día con ${Number(top.productividad).toFixed(1)}/h. Clic en cualquier fila para ver el detalle de sesiones.`;
 }
 
 // ============================================================
@@ -621,8 +670,83 @@ function renderChartAndTable(){
 }
 
 // ============================================================
-// Configuración: turnos y mínimos (persisten en Supabase)
+// Resumen histórico (multi-día) + calculadora
 // ============================================================
+async function loadHistorico(){
+  const body = document.getElementById('historicoBody');
+  body.innerHTML = '<tr><td colspan="7" class="empty-state">Cargando…</td></tr>';
+  try{
+    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3 });
+    if(error) throw error;
+    cacheHistorico = data || [];
+  } catch(err){ console.error(err); cacheHistorico = []; }
+  renderHistorico();
+}
+
+function renderHistorico(){
+  const body = document.getElementById('historicoBody');
+  body.innerHTML = '';
+  if(cacheHistorico.length===0){
+    body.innerHTML = '<tr><td colspan="7" class="empty-state">Todavía no hay suficiente data histórica — sube más días desde Configuración.</td></tr>';
+    document.getElementById('narrativaHistorico').textContent = 'Sin datos suficientes todavía.';
+    ['histDias','histTotal','histEquipo','histTop'].forEach(id=> document.getElementById(id).textContent = '—');
+    document.getElementById('histTopName').textContent = '—';
+    return;
+  }
+
+  const totalPedidos = cacheHistorico.reduce((a,r)=> a+Number(r.total_pedidos), 0);
+  const totalDurMin = cacheHistorico.reduce((a,r)=> a+Number(r.duracion_activa_total_min), 0);
+  const equipoPonderado = totalPedidos / (totalDurMin/60);
+  const diasMax = Math.max(...cacheHistorico.map(r=>Number(r.dias_trabajados)));
+  const top = cacheHistorico.reduce((a,b)=> b.productividad_ponderada > a.productividad_ponderada ? b : a);
+
+  document.getElementById('histDias').textContent = diasMax;
+  document.getElementById('histTotal').textContent = totalPedidos.toLocaleString('es-PE');
+  document.getElementById('histEquipo').textContent = equipoPonderado.toFixed(1) + '/h';
+  document.getElementById('histTop').textContent = Number(top.productividad_ponderada).toFixed(1) + '/h';
+  document.getElementById('histTopName').textContent = top.responsable;
+
+  const pctSobrePromedio = ((Number(top.productividad_ponderada) / equipoPonderado) - 1) * 100;
+  document.getElementById('narrativaHistorico').textContent =
+    `Con datos de ${diasMax} día(s), el equipo de ${PROCESOS[currentProceso].label.toLowerCase()} procesa en promedio ${equipoPonderado.toFixed(1)} pedidos/hora (ponderado por volumen real, no un promedio simple de cada día). ${top.responsable} lidera con ${Number(top.productividad_ponderada).toFixed(1)}/h — un ${pctSobrePromedio.toFixed(0)}% por encima del promedio del equipo.`;
+
+  cacheHistorico.forEach(r=>{
+    const divergePct = Math.abs(Number(r.productividad_ponderada) - Number(r.productividad_promedio_simple)) / Number(r.productividad_ponderada) * 100;
+    const flag = divergePct > 20 ? ' ⚠' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="placa">${r.responsable}${flag}</td>
+      <td class="num">${r.dias_trabajados}</td>
+      <td class="num">${r.total_pedidos}</td>
+      <td class="num" style="color:var(--positive)">${Number(r.productividad_ponderada).toFixed(1)}/h</td>
+      <td class="num">${Number(r.productividad_promedio_simple).toFixed(1)}/h</td>
+      <td>${r.mejor_dia} <span style="color:var(--text-muted)">(${Number(r.mejor_dia_valor).toFixed(0)}/h)</span></td>
+      <td>${r.peor_dia} <span style="color:var(--text-muted)">(${Number(r.peor_dia_valor).toFixed(0)}/h)</span></td>`;
+    body.appendChild(tr);
+  });
+}
+
+function calcularTiempo(){
+  const pedidos = parseInt(document.getElementById('calcPedidos').value);
+  const modo = document.getElementById('calcRitmo').value;
+  const resultEl = document.getElementById('calcResultado');
+  if(!pedidos || pedidos<=0 || cacheHistorico.length===0){ resultEl.textContent = ''; return; }
+
+  let ritmo;
+  if(modo==='top'){
+    const top = cacheHistorico.reduce((a,b)=> b.productividad_ponderada > a.productividad_ponderada ? b : a);
+    ritmo = Number(top.productividad_ponderada);
+  } else {
+    const totalPedidos = cacheHistorico.reduce((a,r)=> a+Number(r.total_pedidos), 0);
+    const totalDurMin = cacheHistorico.reduce((a,r)=> a+Number(r.duracion_activa_total_min), 0);
+    ritmo = totalPedidos / (totalDurMin/60);
+  }
+  const horas = pedidos / ritmo;
+  const horasEnt = Math.floor(horas);
+  const minRest = Math.round((horas-horasEnt)*60);
+  resultEl.textContent = `≈ ${horasEnt}h ${minRest}min (a ${ritmo.toFixed(1)} pedidos/h, con 1 persona)`;
+}
+
+
 function renderTurnosTable(){
   const body = document.getElementById('turnosBody');
   body.innerHTML = '';
