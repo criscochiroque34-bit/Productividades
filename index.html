@@ -166,6 +166,12 @@
           <option value="NOCHE">Turno: Noche</option>
           <option value="SIN_ASIGNAR">Turno: Sin asignar</option>
         </select>
+        <select id="personalFilter">
+          <option value="TODOS">Personal: Todos</option>
+          <option value="PLANILLA">Personal: Planilla</option>
+          <option value="TERCERO">Personal: Tercero</option>
+          <option value="SIN_ASIGNAR">Personal: Sin asignar</option>
+        </select>
         <select id="tipoRecepcionFilter" style="display:none">
           <option value="TODOS">Tipo: Todos</option>
           <option value="PICKUP">Tipo: Pickup</option>
@@ -175,8 +181,8 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>Responsable</th><th>Turno</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
-          <tbody id="personasBody"><tr><td colspan="7" class="empty-state">Cargando…</td></tr></tbody>
+          <thead><tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
+          <tbody id="personasBody"><tr><td colspan="8" class="empty-state">Cargando…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -301,10 +307,11 @@
         <input type="text" id="turnoNombreInput" list="nombresList" placeholder="Nombre del responsable" style="min-width:260px;">
         <datalist id="nombresList"></datalist>
         <select id="turnoValorInput"><option value="DIA">Turno: Día</option><option value="NOCHE">Turno: Noche</option></select>
+        <select id="personalValorInput"><option value="PLANILLA">Personal: Planilla</option><option value="TERCERO">Personal: Tercero</option></select>
         <button id="turnoAddBtn" class="btn">+ Asignar</button>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Responsable</th><th>Turno</th><th></th></tr></thead><tbody id="turnosBody"></tbody></table>
+        <table><thead><tr><th>Responsable</th><th>Turno</th><th>Personal</th><th></th></tr></thead><tbody id="turnosBody"></tbody></table>
       </div>
     </div>
 
@@ -366,12 +373,68 @@ const PROCESOS = {
 
 let currentProceso = 'recepcion';
 let currentFecha = null;
-let CONFIG = { turnos: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
+let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
 let cachePersonas = [];
 let cacheHoraData = [];
 
 const svgNS = "http://www.w3.org/2000/svg";
 function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
+
+// ============================================================
+// Fecha/hora: conversión SIN zonas horarias.
+// El Excel trae un reloj de pared (ej. 2026-08-10 23:05:35) que debe
+// guardarse tal cual. Usar new Date()/toISOString() lo desplazaba 5 horas
+// (y cambiaba el día en turno noche), así que aquí armamos el texto a mano
+// y lo marcamos +00:00 para que Postgres guarde los mismos dígitos.
+// ============================================================
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function excelFechaHoraATexto(v){
+  if(v == null || v === '') return null;
+
+  // Serial numérico de Excel — aritmética pura en UTC (camino normal).
+  if(typeof v === 'number' && isFinite(v)){
+    const d = new Date(Date.UTC(1899,11,30) + Math.round(v * 86400000));
+    if(isNaN(d.getTime())) return null;
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}+00:00`;
+  }
+
+  // Objeto Date (por si alguna celda llega ya convertida).
+  if(v instanceof Date){
+    if(isNaN(v.getTime())) return null;
+    const d = new Date(Math.round(v.getTime()/1000)*1000);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}+00:00`;
+  }
+
+  const s = String(v).trim();
+  // "2026-08-10 23:05:35" / "2026-08-10T23:05" (segundos opcionales)
+  let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}+00:00`;
+  // "10/08/2026 23:05:35" (día primero)
+  m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(m) return `${m[3]}-${pad2(m[2])}-${pad2(m[1])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}+00:00`;
+  return null;
+}
+
+// Muestra un timestamp de Supabase con los mismos dígitos que se guardaron.
+function horaDeTexto(ts){
+  const m = String(ts).match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : '—';
+}
+
+// Formateo de fechas "YYYY-MM-DD" sin pasar por Date (evita cualquier
+// desplazamiento por zona horaria o cambio de horario).
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESES_LARGOS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function partesFecha(f){
+  const m = String(f).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? { a:m[1], mes:parseInt(m[2],10), d:m[3] } : null;
+}
+function fmtFechaCorta(f){ const p = partesFecha(f); return p ? `${p.d} ${MESES_CORTOS[p.mes-1]}` : '—'; }
+function fmtFechaConAnio(f){ const p = partesFecha(f); return p ? `${p.d} ${MESES_CORTOS[p.mes-1]} ${p.a}` : '—'; }
+function fmtFechaDM(f){ const p = partesFecha(f); return p ? `${p.d}/${String(p.mes).padStart(2,'0')}` : '—'; }
+function fmtFechaLarga(f){ const p = partesFecha(f); return p ? `${parseInt(p.d,10)} de ${MESES_LARGOS[p.mes-1]}` : '—'; }
+function fmtFechaLargaAnio(f){ const p = partesFecha(f); return p ? `${parseInt(p.d,10)} de ${MESES_LARGOS[p.mes-1]} de ${p.a}` : '—'; }
 function setStatus(ok){
   const dot = document.getElementById('statusDot');
   dot.className = 'status-dot ' + (ok ? 'ok' : 'error');
@@ -386,6 +449,7 @@ async function init(){
   await loadConfig();
   await loadFechas();
   document.getElementById('turnoFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
+  document.getElementById('personalFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
   document.getElementById('tipoRecepcionFilter').addEventListener('change', async ()=>{ await loadPersonas(); renderPersonasTable(); renderKPIs(); });
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
@@ -410,7 +474,11 @@ async function loadConfig(){
     const { data: turnos, error: e1 } = await supa.from('config_turnos').select('*');
     if(e1) throw e1;
     CONFIG.turnos = {};
-    (turnos||[]).forEach(t => CONFIG.turnos[t.responsable] = t.turno);
+    CONFIG.personal = {};
+    (turnos||[]).forEach(t => {
+      CONFIG.turnos[t.responsable] = t.turno;
+      CONFIG.personal[t.responsable] = t.tipo_personal || 'PLANILLA';
+    });
 
     const { data: minimos, error: e2 } = await supa.from('config_minimos').select('*');
     if(e2) throw e2;
@@ -437,7 +505,7 @@ async function loadFechas(){
     data.forEach(row=>{
       const opt = document.createElement('option');
       opt.value = row.fecha;
-      opt.textContent = new Date(row.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) + ` (${row.total})`;
+      opt.textContent = fmtFechaConAnio(row.fecha) + ` (${row.total})`;
       sel.appendChild(opt);
     });
     currentFecha = data[0].fecha;
@@ -551,7 +619,7 @@ async function loadProceso(){
     : `<tr><th>Hora</th><th>${proc.dimLabel}</th><th style="text-align:right">Pistoleos</th></tr>`;
 
   if(!currentFecha){
-    document.getElementById('personasBody').innerHTML = '<tr><td colspan="7" class="empty-state">Sin datos cargados para este proceso todavía — ve a Configuración para subir un archivo.</td></tr>';
+    document.getElementById('personasBody').innerHTML = '<tr><td colspan="8" class="empty-state">Sin datos cargados para este proceso todavía — ve a Configuración para subir un archivo.</td></tr>';
     document.getElementById('tableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Sin datos</td></tr>';
     ['kpiTotal','kpiPlacas','kpiTop','kpiResp'].forEach(id=> document.getElementById(id).textContent = '—');
     document.getElementById('kpiTopName').textContent = '—';
@@ -588,10 +656,13 @@ async function loadHoraData(){
 function getFilteredPersonas(){
   const minimo = CONFIG.minimos[currentProceso] || 0;
   const turnoSel = document.getElementById('turnoFilter').value;
+  const personalSel = document.getElementById('personalFilter').value;
   return cachePersonas.filter(p=>{
     if(p.total_pedidos < minimo) return false;
     const turno = CONFIG.turnos[p.responsable] || 'SIN_ASIGNAR';
     if(turnoSel !== 'TODOS' && turno !== turnoSel) return false;
+    const personal = CONFIG.personal[p.responsable] || 'SIN_ASIGNAR';
+    if(personalSel !== 'TODOS' && personal !== personalSel) return false;
     return true;
   });
 }
@@ -618,7 +689,7 @@ function renderKPIs(){
   document.getElementById('kpiTopName').textContent = top.responsable;
   document.getElementById('kpiResp').textContent = rows.length;
 
-  const fechaFmt = new Date(currentFecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long'});
+  const fechaFmt = fmtFechaLarga(currentFecha);
   const promedioEquipo = rows.reduce((a,r)=>a+Number(r.productividad),0) / rows.length;
   document.getElementById('kpiProm').textContent = promedioEquipo.toFixed(1) + '/h';
   document.getElementById('narrativaDia').textContent =
@@ -634,7 +705,7 @@ function renderPersonasTable(){
   body.innerHTML = '';
   const rows = getFilteredPersonas().sort((a,b)=> b.productividad - a.productividad);
   if(rows.length===0){
-    body.innerHTML = '<tr><td colspan="7" class="empty-state">Nadie cumple el filtro actual (turno / mínimo)</td></tr>';
+    body.innerHTML = '<tr><td colspan="8" class="empty-state">Nadie cumple el filtro actual (turno / personal / mínimo)</td></tr>';
     return;
   }
   rows.forEach(p=>{
@@ -644,8 +715,11 @@ function renderPersonasTable(){
     const turno = CONFIG.turnos[p.responsable];
     const turnoLabelMap = { DIA:'Día', NOCHE:'Noche' };
     const turnoLabel = turno ? (turnoLabelMap[turno]||turno) : '<span style="color:var(--text-muted)">—</span>';
+    const personal = CONFIG.personal[p.responsable];
+    const personalLabelMap = { PLANILLA:'Planilla', TERCERO:'Tercero' };
+    const personalLabel = personal ? (personalLabelMap[personal]||personal) : '<span style="color:var(--text-muted)">—</span>';
     tr.innerHTML = `<td style="width:20px"><span class="chevron">&#9656;</span></td>
-      <td class="placa">${p.responsable}${fragBadge}</td><td>${turnoLabel}</td>
+      <td class="placa">${p.responsable}${fragBadge}</td><td>${turnoLabel}</td><td>${personalLabel}</td>
       <td class="num">${p.total_pedidos}</td><td class="num">${p.n_sesiones}</td>
       <td class="num">${Number(p.duracion_activa_min).toFixed(1)} min</td>
       <td class="num" style="color:var(--positive)">${Number(p.productividad).toFixed(1)}/h</td>`;
@@ -653,7 +727,7 @@ function renderPersonasTable(){
 
     const trDetail = document.createElement('tr');
     trDetail.className = 'session-detail';
-    const td = document.createElement('td'); td.colSpan = 7;
+    const td = document.createElement('td'); td.colSpan = 8;
     const panel = document.createElement('div'); panel.className = 'session-panel';
     panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Cargando sesiones…</span>';
     td.appendChild(panel); trDetail.appendChild(td); body.appendChild(trDetail);
@@ -670,7 +744,7 @@ function renderPersonasTable(){
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar sesiones</span>'; return; }
         let sTable = `<table><thead><tr><th>Sesión</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>${PROCESOS[currentProceso].dimLabel}</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Ped/h</th></tr></thead><tbody>`;
         (data||[]).forEach(s=>{
-          const hora = t => new Date(t).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit', timeZone:'UTC'});
+          const hora = t => horaDeTexto(t);
           const dims = (s.dimensiones||[]).map(d=>`<span class="placa-tag">${d}</span>`).join('');
           sTable += `<tr><td>#${s.sesion_num}</td><td>${hora(s.inicio)}</td><td>${hora(s.fin)}</td><td>${Number(s.dur_min).toFixed(1)} min</td><td>${dims}</td><td class="num">${s.pedidos}</td><td class="num">${Number(s.pedidos_x_hora).toFixed(1)}</td></tr>`;
         });
@@ -808,7 +882,7 @@ function wireTopExpand(container){
         });
         if(error || !data || data.length===0){ panel.textContent = 'Sin días registrados.'; return; }
         panel.innerHTML = data.map(d=>{
-          const fechaFmt = new Date(d.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'});
+          const fechaFmt = fmtFechaCorta(d.fecha);
           return `<div style="display:flex; justify-content:space-between; max-width:260px; padding:2px 0">
             <span>${fechaFmt}</span><span style="color:var(--text-primary)">${Number(d.productividad_dia).toFixed(1)}/h · ${d.pedidos_dia} ped.</span>
           </div>`;
@@ -969,7 +1043,7 @@ function renderTendencia(){
   kpisEl.innerHTML = `
     <div class="kpi"><div class="kpi-label">Productividad promedio acumulada</div><div class="kpi-value accent">${promAcumulado.toFixed(1)}/h</div><div class="kpi-sub">${values.length} días</div></div>
     <div class="kpi"><div class="kpi-label">Pedidos del período</div><div class="kpi-value">${totalPedidosPeriodo.toLocaleString('es-PE')}</div><div class="kpi-sub">suma de todos los días</div></div>
-    <div class="kpi"><div class="kpi-label">Mejor día</div><div class="kpi-value">${Number(mejorDia.productividad_promedio).toFixed(1)}/h</div><div class="kpi-sub">${new Date(mejorDia.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'})}</div></div>
+    <div class="kpi"><div class="kpi-label">Mejor día</div><div class="kpi-value">${Number(mejorDia.productividad_promedio).toFixed(1)}/h</div><div class="kpi-sub">${fmtFechaCorta(mejorDia.fecha)}</div></div>
     <div class="kpi"><div class="kpi-label">Tendencia</div><div class="kpi-value" style="color:${tendenciaColor}">${tendenciaTxt}</div><div class="kpi-sub">1ª mitad vs 2ª mitad del período</div></div>
   `;
 
@@ -1031,13 +1105,13 @@ function renderTendencia(){
     dot.appendChild(title);
     chart.appendChild(dot);
     const label = el('text',{x, y:H-8, class:'axis-label','text-anchor':'middle'});
-    label.textContent = new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit'});
+    label.textContent = fmtFechaDM(r.fecha);
     chart.appendChild(label);
   });
 
   cacheTendencia.slice().reverse().forEach(r=>{
     const tr = document.createElement('tr');
-    const fechaFmt = new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'});
+    const fechaFmt = fmtFechaLargaAnio(r.fecha);
     tr.innerHTML = `<td class="placa">${fechaFmt}</td><td class="num">${r.total_pedidos}</td><td class="num">${r.n_responsables}</td><td class="num" style="color:var(--positive)">${Number(r.productividad_promedio).toFixed(1)}/h</td>`;
     body.appendChild(tr);
   });
@@ -1087,25 +1161,37 @@ function renderTurnosTable(){
   const body = document.getElementById('turnosBody');
   body.innerHTML = '';
   const turnoLabels = { DIA:'Día', NOCHE:'Noche' };
+  const personalLabels = { PLANILLA:'Planilla', TERCERO:'Tercero' };
   const entries = Object.entries(CONFIG.turnos).sort((a,b)=>a[0].localeCompare(b[0]));
-  if(entries.length===0){ body.innerHTML = '<tr><td colspan="3" class="empty-state">Sin asignaciones todavía</td></tr>'; return; }
+  if(entries.length===0){ body.innerHTML = '<tr><td colspan="4" class="empty-state">Sin asignaciones todavía</td></tr>'; return; }
   entries.forEach(([nombre,turno])=>{
+    const personal = CONFIG.personal[nombre] || 'PLANILLA';
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="placa">${nombre}</td><td>${turnoLabels[turno]||turno}</td><td></td>`;
-    const tdActions = tr.children[2];
+    tr.innerHTML = `<td class="placa">${nombre}</td><td>${turnoLabels[turno]||turno}</td><td>${personalLabels[personal]||personal}</td><td></td>`;
+    const tdActions = tr.children[3];
+
     const editSel = document.createElement('select');
     ['DIA','NOCHE'].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=turnoLabels[v]; if(v===turno) o.selected=true; editSel.appendChild(o); });
     editSel.style.marginRight='8px';
     editSel.addEventListener('change', async ()=>{
-      await supa.from('config_turnos').upsert({ responsable: nombre, turno: editSel.value });
+      await supa.from('config_turnos').upsert({ responsable: nombre, turno: editSel.value, tipo_personal: CONFIG.personal[nombre] || 'PLANILLA' });
       CONFIG.turnos[nombre] = editSel.value; renderTurnosTable();
     });
+
+    const persSel = document.createElement('select');
+    ['PLANILLA','TERCERO'].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=personalLabels[v]; if(v===personal) o.selected=true; persSel.appendChild(o); });
+    persSel.style.marginRight='8px';
+    persSel.addEventListener('change', async ()=>{
+      await supa.from('config_turnos').upsert({ responsable: nombre, turno: CONFIG.turnos[nombre], tipo_personal: persSel.value });
+      CONFIG.personal[nombre] = persSel.value; renderTurnosTable();
+    });
+
     const delBtn = document.createElement('button'); delBtn.textContent='Quitar'; delBtn.className='btn btn-ghost'; delBtn.style.padding='5px 10px'; delBtn.style.fontSize='10.5px';
     delBtn.addEventListener('click', async ()=>{
       await supa.from('config_turnos').delete().eq('responsable', nombre);
-      delete CONFIG.turnos[nombre]; renderTurnosTable();
+      delete CONFIG.turnos[nombre]; delete CONFIG.personal[nombre]; renderTurnosTable();
     });
-    tdActions.appendChild(editSel); tdActions.appendChild(delBtn);
+    tdActions.appendChild(editSel); tdActions.appendChild(persSel); tdActions.appendChild(delBtn);
     body.appendChild(tr);
   });
 }
@@ -1113,9 +1199,11 @@ function renderTurnosTable(){
 async function addTurno(){
   const nombre = document.getElementById('turnoNombreInput').value.trim();
   const turno = document.getElementById('turnoValorInput').value;
+  const tipo_personal = document.getElementById('personalValorInput').value;
   if(!nombre) return;
-  await supa.from('config_turnos').upsert({ responsable: nombre, turno });
+  await supa.from('config_turnos').upsert({ responsable: nombre, turno, tipo_personal });
   CONFIG.turnos[nombre] = turno;
+  CONFIG.personal[nombre] = tipo_personal;
   document.getElementById('turnoNombreInput').value = '';
   renderTurnosTable();
 }
@@ -1153,7 +1241,7 @@ async function loadDiasCargados(){
       const rows = data.length===0
         ? '<div class="empty-state" style="padding:12px 0">Sin data</div>'
         : data.map(r=>`<div style="display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:11.5px;">
-            <span>${new Date(r.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short'})}</span>
+            <span>${fmtFechaCorta(r.fecha)}</span>
             <span style="color:var(--text-secondary)">${r.total}</span>
           </div>`).join('');
       box.innerHTML = `<div class="card-title" style="font-size:13px; margin-bottom:8px">${PROCESOS[key].label}</div>${rows}`;
@@ -1222,19 +1310,17 @@ async function stageFile(file, procesoKey){
   statusEl.textContent = 'Leyendo archivo…';
   try{
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    const wb = XLSX.read(buf, { type:'array', cellDates:false });
     const sheet = wb.Sheets[wb.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet, { defval:null });
+    const json = XLSX.utils.sheet_to_json(sheet, { defval:null, raw:true });
     const map = PROCESOS[procesoKey].columnMap;
 
     let rows = json.map(r=>{
-      const fh = r[map.fecha_hora];
-      const fecha_hora = (fh instanceof Date) ? fh.toISOString() : (fh ? new Date(fh).toISOString() : null);
       return {
         proceso: procesoKey,
         codigo: r[map.codigo] != null ? String(r[map.codigo]) : null,
         responsable: r[map.responsable],
-        fecha_hora,
+        fecha_hora: excelFechaHoraATexto(r[map.fecha_hora]),
         dimension: r[map.dimension],
         tipo_extra: map.tipo_extra ? r[map.tipo_extra] : null
       };
