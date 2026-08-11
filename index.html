@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Productividad · Warehouse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#0A0A12; --surface:#131320; --surface-raised:#1A1A2E; --surface-hover:#22223a55;
+    --border:#26263D; --border-strong:#35355A;
+    --text-primary:#EDEDF7; --text-secondary:#9C9CBD; --text-muted:#5F5F7D;
+    --primary:#7C5CFC; --primary-dim:#221A42;
+    --positive:#2DD4BF; --positive-dim:#0F2E2C;
+    --warn:#FB7185; --warn-dim:#3A1620;
+    --font-display:'Manrope',sans-serif; --font-mono:'IBM Plex Mono',monospace; --font-body:'Manrope',sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body{ background:var(--bg-deep); color:var(--text-primary); font-family:var(--font-body); padding:32px 24px 64px; min-height:100vh; }
+  .wrap{ max-width:1120px; margin:0 auto; }
+
+  header{ display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+  .eyebrow-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .status-dot{ width:7px; height:7px; border-radius:50%; background:var(--text-muted); flex-shrink:0; }
+  .status-dot.ok{ background:var(--positive); box-shadow:0 0 0 0 rgba(45,212,191,0.5); animation:pulse 2s infinite; }
+  .status-dot.error{ background:var(--warn); }
+  @keyframes pulse{ 0%{ box-shadow:0 0 0 0 rgba(45,212,191,0.45); } 70%{ box-shadow:0 0 0 6px rgba(45,212,191,0); } 100%{ box-shadow:0 0 0 0 rgba(45,212,191,0); } }
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.12em; color:var(--primary); text-transform:uppercase; }
+  h1{ font-family:var(--font-display); font-weight:800; font-size:26px; letter-spacing:-0.01em; }
+  .subtitle{ color:var(--text-secondary); font-size:13px; margin-top:4px; }
+  .controls{ display:flex; gap:10px; align-items:center; }
+  select, input[type=text], input[type=number]{
+    background:var(--surface-raised); color:var(--text-primary); border:1px solid var(--border-strong); border-radius:8px;
+    font-family:var(--font-mono); font-size:12px; padding:9px 12px; cursor:pointer;
+  }
+  select{
+    appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0L5 6L10 0Z' fill='%239C9CBD'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:30px; min-width:170px;
+  }
+  select:focus, input:focus{ outline:none; border-color:var(--primary); }
+
+  .proceso-selector{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .proceso-btn{
+    background:var(--surface); border:1px solid var(--border); color:var(--text-secondary);
+    font-family:var(--font-mono); font-size:12px; padding:10px 16px; border-radius:8px; cursor:pointer; transition:all 0.15s;
+  }
+  .proceso-btn.active{ background:var(--primary-dim); border-color:var(--primary); color:#C9B8FF; }
+  .proceso-btn:hover:not(.active){ border-color:var(--border-strong); color:var(--text-primary); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .kpi{ background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .kpi-label{ font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px; font-family:var(--font-mono); }
+  .kpi-value{ font-family:var(--font-display); font-size:27px; font-weight:800; color:var(--text-primary); font-variant-numeric:tabular-nums; }
+  .kpi-value.accent{ color:var(--positive); }
+  .kpi-sub{ font-size:11px; color:var(--text-secondary); margin-top:4px; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px 22px 14px; margin-bottom:24px; }
+  .card-title{ font-family:var(--font-display); font-size:15px; font-weight:700; margin-bottom:2px; }
+  .card-sub{ font-size:12px; color:var(--text-muted); margin-bottom:18px; }
+
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin-bottom:16px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-secondary); font-family:var(--font-mono); }
+  .legend-dot{ width:9px; height:9px; border-radius:2px; }
+
+  #chart{ width:100%; display:block; }
+  .axis-label{ font-family:var(--font-mono); font-size:9px; fill:var(--text-muted); }
+  .bar-seg{ transition:opacity 0.15s; }
+  .bar-seg:hover{ opacity:0.75; cursor:pointer; }
+  .gridline{ stroke:var(--border); stroke-width:1; }
+
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead th{ text-align:left; font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); padding:8px 12px; border-bottom:1px solid var(--border-strong); font-weight:500; }
+  tbody td{ padding:9px 12px; border-bottom:1px solid var(--border); color:var(--text-secondary); font-family:var(--font-mono); }
+  tbody tr:hover{ background:var(--surface-hover); }
+  td.placa{ color:var(--text-primary); font-weight:600; }
+  .pill{ display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:10px; font-family:var(--font-mono); }
+  .pill.pickup{ background:var(--primary-dim); color:#C9B8FF; }
+  .pill.transfer{ background:var(--positive-dim); color:var(--positive); }
+  td.num{ text-align:right; color:var(--text-primary); font-weight:600; }
+
+  .tabs{ display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); }
+  .tab{ background:none; border:none; color:var(--text-muted); font-family:var(--font-mono); font-size:12.5px; padding:10px 4px; margin-right:20px; cursor:pointer; border-bottom:2px solid transparent; }
+  .tab.active{ color:var(--primary); border-bottom-color:var(--primary); }
+  .tab:hover:not(.active){ color:var(--text-secondary); }
+
+  tr.person-row{ cursor:pointer; }
+  tr.person-row:hover{ background:var(--surface-hover); }
+  .chevron{ display:inline-block; transition:transform 0.15s; color:var(--text-muted); font-size:10px; }
+  .chevron.open{ transform:rotate(90deg); }
+  tr.session-detail td{ padding:0; border-bottom:1px solid var(--border); }
+  .session-panel{ display:none; padding:6px 12px 14px 34px; background:#0D0D18; }
+  .session-panel.open{ display:block; }
+  .session-panel table{ margin-top:6px; }
+  .session-panel thead th{ font-size:9.5px; padding:6px 10px; border-bottom:1px solid var(--border); }
+  .session-panel tbody td{ padding:6px 10px; font-size:11.5px; }
+  .frag-badge{ font-size:10px; font-family:var(--font-mono); padding:2px 7px; border-radius:10px; background:var(--warn-dim); color:var(--warn); margin-left:8px; }
+  .placa-tag{ font-size:10px; font-family:var(--font-mono); color:var(--text-muted); background:var(--surface-raised); padding:1px 6px; border-radius:4px; margin-right:3px; }
+
+  .dropzone{
+    border:1.5px dashed var(--border-strong); border-radius:10px; padding:26px; text-align:center;
+    color:var(--text-secondary); font-size:12.5px; cursor:pointer; transition:all 0.15s; margin-bottom:10px;
+  }
+  .dropzone:hover, .dropzone.dragover{ border-color:var(--primary); color:var(--text-primary); background:var(--primary-dim); }
+  .dropzone strong{ color:var(--text-primary); }
+  .upload-status{ font-family:var(--font-mono); font-size:11.5px; margin-top:8px; padding:8px 12px; border-radius:6px; display:none; }
+  .upload-status.show{ display:block; }
+  .upload-status.ok{ background:var(--positive-dim); color:var(--positive); }
+  .upload-status.error{ background:var(--warn-dim); color:var(--warn); }
+  .upload-status.loading{ background:var(--surface-raised); color:var(--text-secondary); }
+
+  .btn{ background:var(--primary-dim); border:1px solid var(--primary); color:#C9B8FF; font-family:var(--font-mono); font-size:12px; padding:9px 16px; border-radius:8px; cursor:pointer; }
+  .btn:hover{ opacity:0.85; }
+  .btn-ghost{ background:none; border:1px solid var(--border-strong); color:var(--text-secondary); }
+  .btn-ghost:hover{ color:var(--text-primary); border-color:var(--text-muted); }
+
+  .empty-state{ text-align:center; color:var(--text-muted); padding:30px; font-size:13px; }
+  .footnote{ margin-top:18px; font-size:11px; color:var(--text-muted); text-align:center; font-family:var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="eyebrow-row">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="eyebrow" id="eyebrow">Warehouse Ops</span>
+      </div>
+      <h1 id="mainTitle">Productividad</h1>
+      <div class="subtitle" id="subtitle">Conectando con Supabase…</div>
+    </div>
+    <div class="controls">
+      <select id="fechaSelector"><option>Cargando fechas…</option></select>
+    </div>
+  </header>
+
+  <div class="proceso-selector" id="procesoSelector"></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Total pistoleos</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-sub">día seleccionado</div></div>
+    <div class="kpi"><div class="kpi-label" id="kpiDimLabel">Dimensión activa</div><div class="kpi-value" id="kpiPlacas">—</div><div class="kpi-sub">con al menos 1 pistoleo</div></div>
+    <div class="kpi"><div class="kpi-label">Top productividad</div><div class="kpi-value accent" id="kpiTop">—</div><div class="kpi-sub" id="kpiTopName">—</div></div>
+    <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value" id="kpiResp">—</div><div class="kpi-sub">con pistoleos ese día</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="personas">Por responsable</button>
+    <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
+  </div>
+
+  <div id="view-personas">
+    <div class="card">
+      <div class="card-title">Productividad por responsable</div>
+      <div class="card-sub">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
+      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap">
+        <select id="turnoFilter">
+          <option value="TODOS">Turno: Todos</option>
+          <option value="AM">Turno: AM</option>
+          <option value="PM">Turno: PM</option>
+          <option value="SIN_ASIGNAR">Turno: Sin asignar</option>
+        </select>
+        <span class="card-sub" id="minimoBadge" style="margin:0; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)">mínimo: 0 pedidos</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>Responsable</th><th>Turno</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
+          <tbody id="personasBody"><tr><td colspan="7" class="empty-state">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-dim" style="display:none">
+    <div class="card">
+      <div class="card-title" id="chartTitle">Pistoleos por hora</div>
+      <div class="card-sub" id="chartSub">Top dimensiones del día + resto agrupado en "Otros"</div>
+      <div class="controls" style="margin-bottom:14px" id="filterWrap"></div>
+      <div class="legend" id="legend"></div>
+      <svg id="chart" viewBox="0 0 1000 320"></svg>
+    </div>
+    <div class="card">
+      <div class="card-title">Detalle por hora</div>
+      <div class="card-sub" id="detailSub">Desglose por dimensión</div>
+      <div class="table-wrap">
+        <table>
+          <thead id="detailHead"><tr><th>Hora</th><th>Dimensión</th><th style="text-align:right">Pistoleos</th></tr></thead>
+          <tbody id="tableBody"><tr><td colspan="3" class="empty-state">Cargando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote" id="footnote"></div>
+
+  <div id="view-config" style="display:none">
+    <div class="card">
+      <div class="card-title">Cargar archivos</div>
+      <div class="card-sub">Sube el Excel de cada proceso — se dedupea automáticamente por código + fecha/hora exacta (excepto anclaje, que cuenta cada reescaneo)</div>
+      <div id="dropzonesWrap"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Turnos por responsable</div>
+      <div class="card-sub">Asigna AM / PM a cada persona · aplica como filtro en las 3 vistas de proceso</div>
+      <div class="controls" style="margin-bottom:16px; flex-wrap:wrap; gap:8px">
+        <input type="text" id="turnoNombreInput" list="nombresList" placeholder="Nombre del responsable" style="min-width:260px;">
+        <datalist id="nombresList"></datalist>
+        <select id="turnoValorInput"><option value="AM">Turno: AM</option><option value="PM">Turno: PM</option></select>
+        <button id="turnoAddBtn" class="btn">+ Asignar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Responsable</th><th>Turno</th><th></th></tr></thead><tbody id="turnosBody"></tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Mínimo de pedidos por proceso</div>
+      <div class="card-sub">Oculta de la vista "Por responsable" a quienes no lleguen a este mínimo de pedidos en el día</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Proceso</th><th style="text-align:right">Mínimo actual</th><th style="text-align:right">Editar</th></tr></thead><tbody id="minimosBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// CONFIGURA ACÁ tu proyecto Supabase (Project Settings > API)
+// ============================================================
+const SUPABASE_URL = 'https://lypnqmrudhtztflzmacl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx5cG5xbXJ1ZGh0enRmbHptYWNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0MTEwMDcsImV4cCI6MjEwMTk4NzAwN30.uadTBlD0pbCJNCgr504YwLpMSzcxC6VMKvpMHLaDPGc';
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const COLORS = { "ELECTROLUX01":"#7C5CFC","OFERTEC":"#2DD4BF","HBC01":"#FB7185","LIMASUR04":"#F5B94D","ACJ07":"#5AC8FA","ACJ4":"#C77DFF",
+  "OF MOTORIZADOS":"#7C5CFC","VANS RUTEO ESTATICO":"#2DD4BF","VANS RUTEO DINAMICO":"#FB7185","STS":"#F5B94D","REPROGRAMACION 24H":"#5AC8FA","CD VES":"#C77DFF",
+  "Sorting Ruteo Estático":"#7C5CFC","Sorting CT":"#2DD4BF","Sorting BTL":"#FB7185","Sorting IFBF":"#F5B94D","Sorting Masterbox":"#5AC8FA","Sorting Sodimac VEV":"#C77DFF",
+  "OTROS":"#3A3A55" };
+const PALETTE = ["#7C5CFC","#2DD4BF","#FB7185","#F5B94D","#5AC8FA","#C77DFF"];
+function colorFor(dim){ return COLORS[dim] || '#3A3A55'; }
+
+const PROCESOS = {
+  recepcion: {
+    label: "Recepción", eyebrow: "Zeus · Recepción",
+    title: "Productividad de pistoleo", subtitle: "Pistoleos por hora y por responsable",
+    filterable: true, filterOptions: [["TODOS","Tipo: Todos"],["PICKUP","Tipo: Pickup"],["TRANSFERENCIA BU","Tipo: Transferencia BU"]],
+    dimLabel: "Placa", dimLabelPlural: "Placas activas", chartTitle: "Pistoleos por hora · por placa",
+    chartSub: 'Top dimensiones del día + resto agrupado en "Otros"', detailSub: "Desglose placa / tipo de recepción",
+    hasTipoCol: true,
+    columnMap: { codigo:'Codigo Seguimiento', responsable:'Responsabe Registro', fecha_hora:'fechaRegistroAsignadoFlota', dimension:'Placa', tipo_extra:'Tipo Recepción' }
+  },
+  etiquetado: {
+    label: "Etiquetado", eyebrow: "Impresión · Etiquetado",
+    title: "Productividad de etiquetado", subtitle: "Pistoleos por hora y por responsable",
+    filterable: false, filterOptions: [],
+    dimLabel: "Flujo", dimLabelPlural: "Flujos activos", chartTitle: "Pistoleos por hora · por flujo",
+    chartSub: 'Top flujos del día + resto agrupado en "Otros"', detailSub: "Desglose por flujo",
+    hasTipoCol: false,
+    columnMap: { codigo:'rastreo', responsable:'responsable', fecha_hora:'fechaRegistro', dimension:'flujo', tipo_extra:null }
+  },
+  anclaje: {
+    label: "Anclaje", eyebrow: "Anclaje · Sorting",
+    title: "Productividad de anclaje", subtitle: "Pistoleos por hora y por responsable",
+    filterable: false, filterOptions: [],
+    dimLabel: "Tipo Anclaje", dimLabelPlural: "Tipos activos", chartTitle: "Pistoleos por hora · por tipo de anclaje",
+    chartSub: 'Top tipos del día + resto agrupado en "Otros"', detailSub: "Desglose por tipo de anclaje",
+    hasTipoCol: false,
+    columnMap: { codigo:'rastreo', responsable:'responsableFinal', fecha_hora:'fechaRegistroInicio', dimension:'tipoAnclaje', tipo_extra:null }
+  }
+};
+
+let currentProceso = 'recepcion';
+let currentFecha = null;
+let CONFIG = { turnos: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
+let cachePersonas = [];
+let cacheHoraData = [];
+
+const svgNS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
+function setStatus(ok){
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + (ok ? 'ok' : 'error');
+}
+
+// ============================================================
+// Carga inicial
+// ============================================================
+async function init(){
+  renderProcesoSelector();
+  renderDropzones();
+  await loadConfig();
+  await loadFechas();
+  document.getElementById('turnoFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
+  document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
+  document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      document.getElementById('view-personas').style.display = tab==='personas' ? 'block' : 'none';
+      document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
+    });
+  });
+  await loadProceso();
+}
+
+async function loadConfig(){
+  try{
+    const { data: turnos, error: e1 } = await supa.from('config_turnos').select('*');
+    if(e1) throw e1;
+    CONFIG.turnos = {};
+    (turnos||[]).forEach(t => CONFIG.turnos[t.responsable] = t.turno);
+
+    const { data: minimos, error: e2 } = await supa.from('config_minimos').select('*');
+    if(e2) throw e2;
+    (minimos||[]).forEach(m => CONFIG.minimos[m.proceso] = m.minimo);
+    setStatus(true);
+  } catch(err){
+    console.error(err);
+    setStatus(false);
+    document.getElementById('subtitle').textContent = 'Sin conexión a Supabase — revisa SUPABASE_URL / ANON_KEY';
+  }
+}
+
+async function loadFechas(){
+  const sel = document.getElementById('fechaSelector');
+  sel.innerHTML = '';
+  try{
+    const { data, error } = await supa.rpc('fechas_disponibles', { p_proceso: currentProceso });
+    if(error) throw error;
+    if(!data || data.length===0){
+      sel.innerHTML = '<option value="">Sin datos cargados</option>';
+      currentFecha = null;
+      return;
+    }
+    data.forEach(row=>{
+      const opt = document.createElement('option');
+      opt.value = row.fecha;
+      opt.textContent = new Date(row.fecha+'T00:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric'}) + ` (${row.total})`;
+      sel.appendChild(opt);
+    });
+    currentFecha = data[0].fecha;
+    sel.value = currentFecha;
+  } catch(err){
+    console.error(err);
+    sel.innerHTML = '<option value="">Error al cargar fechas</option>';
+  }
+}
+
+// ============================================================
+// Render de proceso / header
+// ============================================================
+function renderProcesoSelector(){
+  const wrap = document.getElementById('procesoSelector');
+  wrap.innerHTML = '';
+  Object.entries(PROCESOS).forEach(([key, p])=>{
+    const btn = document.createElement('button');
+    btn.className = 'proceso-btn' + (key===currentProceso && currentView!=='config' ? ' active' : '');
+    btn.textContent = p.label;
+    btn.addEventListener('click', async ()=>{ currentProceso = key; currentView='dashboard'; await loadFechas(); await loadProceso(); });
+    wrap.appendChild(btn);
+  });
+  const configBtn = document.createElement('button');
+  configBtn.className = 'proceso-btn' + (currentView==='config' ? ' active' : '');
+  configBtn.textContent = '⚙ Configuración';
+  configBtn.addEventListener('click', ()=>{ currentView='config'; renderView(); });
+  wrap.appendChild(configBtn);
+}
+
+let currentView = 'dashboard';
+
+function renderView(){
+  renderProcesoSelector();
+  const isConfig = currentView === 'config';
+  document.querySelector('.kpis').style.display = isConfig ? 'none' : 'grid';
+  document.querySelector('.tabs').style.display = isConfig ? 'none' : 'flex';
+  document.getElementById('view-personas').style.display = isConfig ? 'none' : 'block';
+  document.getElementById('view-dim').style.display = 'none';
+  document.getElementById('footnote').style.display = isConfig ? 'none' : 'block';
+  document.getElementById('view-config').style.display = isConfig ? 'block' : 'none';
+  document.getElementById('fechaSelector').style.display = isConfig ? 'none' : 'inline-block';
+
+  if(isConfig){
+    document.getElementById('eyebrow').textContent = 'Configuración';
+    document.getElementById('mainTitle').textContent = 'Ajustes del dashboard';
+    document.getElementById('subtitle').textContent = 'Turnos, mínimos y carga de archivos';
+    renderTurnosTable();
+    renderMinimosTable();
+    const datalist = document.getElementById('nombresList');
+    const nombres = new Set([...Object.keys(CONFIG.turnos), ...cachePersonas.map(p=>p.responsable)]);
+    datalist.innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
+  } else {
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.tab[data-tab="personas"]').classList.add('active');
+  }
+}
+
+async function loadProceso(){
+  currentView = 'dashboard';
+  renderView();
+  const proc = PROCESOS[currentProceso];
+  document.getElementById('eyebrow').textContent = proc.eyebrow;
+  document.getElementById('mainTitle').textContent = proc.title;
+  document.getElementById('subtitle').textContent = proc.subtitle;
+  document.getElementById('chartTitle').textContent = proc.chartTitle;
+  document.getElementById('chartSub').textContent = proc.chartSub;
+  document.getElementById('detailSub').textContent = proc.detailSub;
+  document.getElementById('tabDimBtn').textContent = 'Por ' + proc.dimLabel.toLowerCase() + ' / hora';
+  document.getElementById('footnote').textContent = `Fuente: ${proc.columnMap.fecha_hora} · umbral de sesión: 3 min`;
+
+  const filterWrap = document.getElementById('filterWrap');
+  filterWrap.innerHTML = '';
+  if(proc.filterable){
+    const select = document.createElement('select');
+    select.id = 'tipoFilter';
+    proc.filterOptions.forEach(([val,label])=>{
+      const opt = document.createElement('option'); opt.value = val; opt.textContent = label;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', ()=>{ renderChartAndTable(); });
+    filterWrap.appendChild(select);
+  }
+  const detailHead = document.getElementById('detailHead');
+  detailHead.innerHTML = proc.hasTipoCol
+    ? '<tr><th>Hora</th><th>Placa</th><th>Tipo</th><th style="text-align:right">Pistoleos</th></tr>'
+    : `<tr><th>Hora</th><th>${proc.dimLabel}</th><th style="text-align:right">Pistoleos</th></tr>`;
+
+  if(!currentFecha){
+    document.getElementById('personasBody').innerHTML = '<tr><td colspan="7" class="empty-state">Sin datos cargados para este proceso todavía — ve a Configuración para subir un archivo.</td></tr>';
+    document.getElementById('tableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Sin datos</td></tr>';
+    ['kpiTotal','kpiPlacas','kpiTop','kpiResp'].forEach(id=> document.getElementById(id).textContent = '—');
+    document.getElementById('kpiTopName').textContent = '—';
+    return;
+  }
+
+  await Promise.all([loadPersonas(), loadHoraData()]);
+  renderPersonasTable();
+  renderChartAndTable();
+  renderKPIs();
+}
+
+async function loadPersonas(){
+  try{
+    const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3 });
+    if(error) throw error;
+    cachePersonas = data || [];
+  } catch(err){ console.error(err); cachePersonas = []; }
+}
+
+async function loadHoraData(){
+  try{
+    const { data, error } = await supa.rpc('pistoleos_por_hora', { p_proceso: currentProceso, p_fecha: currentFecha });
+    if(error) throw error;
+    cacheHoraData = data || [];
+  } catch(err){ console.error(err); cacheHoraData = []; }
+}
+
+// ============================================================
+// KPIs
+// ============================================================
+function getFilteredPersonas(){
+  const minimo = CONFIG.minimos[currentProceso] || 0;
+  const turnoSel = document.getElementById('turnoFilter').value;
+  return cachePersonas.filter(p=>{
+    if(p.total_pedidos < minimo) return false;
+    const turno = CONFIG.turnos[p.responsable] || 'SIN_ASIGNAR';
+    if(turnoSel !== 'TODOS' && turno !== turnoSel) return false;
+    return true;
+  });
+}
+
+function renderKPIs(){
+  const proc = PROCESOS[currentProceso];
+  document.getElementById('kpiDimLabel').textContent = proc.dimLabelPlural;
+  const totalPistoleos = cacheHoraData.reduce((a,r)=> a + Number(r.cantidad), 0);
+  document.getElementById('kpiTotal').textContent = totalPistoleos.toLocaleString('es-PE');
+  const dims = new Set(cacheHoraData.map(r=>r.dimension));
+  document.getElementById('kpiPlacas').textContent = dims.size;
+
+  const rows = getFilteredPersonas();
+  if(rows.length===0){
+    document.getElementById('kpiTop').textContent = '—';
+    document.getElementById('kpiTopName').textContent = 'sin datos con este filtro';
+    document.getElementById('kpiResp').textContent = 0;
+    return;
+  }
+  const top = rows.reduce((a,b)=> b.productividad > a.productividad ? b : a);
+  document.getElementById('kpiTop').textContent = Number(top.productividad).toFixed(1) + '/h';
+  document.getElementById('kpiTopName').textContent = top.responsable;
+  document.getElementById('kpiResp').textContent = rows.length;
+}
+
+// ============================================================
+// Tabla de personas + drill-down de sesiones (RPC bajo demanda)
+// ============================================================
+function renderPersonasTable(){
+  document.getElementById('minimoBadge').textContent = 'mínimo: ' + (CONFIG.minimos[currentProceso]||0) + ' pedidos';
+  const body = document.getElementById('personasBody');
+  body.innerHTML = '';
+  const rows = getFilteredPersonas().sort((a,b)=> b.productividad - a.productividad);
+  if(rows.length===0){
+    body.innerHTML = '<tr><td colspan="7" class="empty-state">Nadie cumple el filtro actual (turno / mínimo)</td></tr>';
+    return;
+  }
+  rows.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.className = 'person-row';
+    const fragBadge = p.n_sesiones >= 6 ? `<span class="frag-badge">${p.n_sesiones} cortes</span>` : '';
+    const turno = CONFIG.turnos[p.responsable];
+    const turnoLabel = turno ? turno : '<span style="color:var(--text-muted)">—</span>';
+    tr.innerHTML = `<td style="width:20px"><span class="chevron">&#9656;</span></td>
+      <td class="placa">${p.responsable}${fragBadge}</td><td>${turnoLabel}</td>
+      <td class="num">${p.total_pedidos}</td><td class="num">${p.n_sesiones}</td>
+      <td class="num">${Number(p.duracion_activa_min).toFixed(1)} min</td>
+      <td class="num" style="color:var(--positive)">${Number(p.productividad).toFixed(1)}/h</td>`;
+    body.appendChild(tr);
+
+    const trDetail = document.createElement('tr');
+    trDetail.className = 'session-detail';
+    const td = document.createElement('td'); td.colSpan = 7;
+    const panel = document.createElement('div'); panel.className = 'session-panel';
+    panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Cargando sesiones…</span>';
+    td.appendChild(panel); trDetail.appendChild(td); body.appendChild(trDetail);
+
+    let loaded = false;
+    tr.addEventListener('click', async ()=>{
+      tr.querySelector('.chevron').classList.toggle('open');
+      panel.classList.toggle('open');
+      if(!loaded && panel.classList.contains('open')){
+        loaded = true;
+        const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3 });
+        if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar sesiones</span>'; return; }
+        let sTable = `<table><thead><tr><th>Sesión</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>${PROCESOS[currentProceso].dimLabel}</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Ped/h</th></tr></thead><tbody>`;
+        (data||[]).forEach(s=>{
+          const hora = t => new Date(t).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+          const dims = (s.dimensiones||[]).map(d=>`<span class="placa-tag">${d}</span>`).join('');
+          sTable += `<tr><td>#${s.sesion_num}</td><td>${hora(s.inicio)}</td><td>${hora(s.fin)}</td><td>${Number(s.dur_min).toFixed(1)} min</td><td>${dims}</td><td class="num">${s.pedidos}</td><td class="num">${Number(s.pedidos_x_hora).toFixed(1)}</td></tr>`;
+        });
+        sTable += '</tbody></table>';
+        panel.innerHTML = sTable;
+      }
+    });
+  });
+}
+
+// ============================================================
+// Gráfico por hora + tabla detalle
+// ============================================================
+function renderChartAndTable(){
+  const proc = PROCESOS[currentProceso];
+  const filtro = proc.filterable ? document.getElementById('tipoFilter').value : 'TODOS';
+  let rows = cacheHoraData;
+  if(proc.hasTipoCol && filtro !== 'TODOS') rows = rows.filter(r => r.tipo_extra === filtro);
+
+  const totalsByDim = {};
+  rows.forEach(r=> totalsByDim[r.dimension] = (totalsByDim[r.dimension]||0) + Number(r.cantidad));
+  const topDims = Object.entries(totalsByDim).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);
+  const dims = [...topDims, 'OTROS'];
+
+  const matrix = Array.from({length:24}, ()=> new Array(dims.length).fill(0));
+  rows.forEach(r=>{
+    const dimIdx = topDims.includes(r.dimension) ? dims.indexOf(r.dimension) : dims.length-1;
+    matrix[r.hora][dimIdx] += Number(r.cantidad);
+  });
+
+  const chart = document.getElementById('chart');
+  chart.innerHTML = '';
+  const W=1000,H=320,padL=34,padB=26,padT=10;
+  const plotW=W-padL-10, plotH=H-padT-padB;
+  const totals = matrix.map(row=>row.reduce((a,b)=>a+b,0));
+  const max = Math.max(...totals, 1);
+  const step = plotW/24; const barW = step*0.62;
+
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y = padT + plotH*(1-f);
+    chart.appendChild(el('line',{x1:padL,x2:W-10,y1:y,y2:y,class:'gridline'}));
+    const t = el('text',{x:padL-8,y:y+3,class:'axis-label','text-anchor':'end'}); t.textContent = Math.round(max*f);
+    chart.appendChild(t);
+  });
+  for(let h=0; h<24; h++){
+    const x = padL + h*step + (step-barW)/2;
+    let yCursor = padT+plotH;
+    dims.forEach((dim,pi)=>{
+      const v = matrix[h][pi];
+      if(v>0){
+        const segH = (v/max)*plotH; yCursor -= segH;
+        const rect = el('rect',{x,y:yCursor,width:barW,height:Math.max(segH-1.5,0),fill:colorFor(dim),rx:1.5,class:'bar-seg'});
+        const title = el('title',{}); title.textContent = `${dim} · ${h}:00 · ${v} pistoleos`; rect.appendChild(title);
+        chart.appendChild(rect);
+      }
+    });
+    if(h%2===0){ const t = el('text',{x:x+barW/2,y:H-8,class:'axis-label','text-anchor':'middle'}); t.textContent=h+'h'; chart.appendChild(t); }
+  }
+  const legend = document.getElementById('legend'); legend.innerHTML='';
+  dims.filter(d=> matrix.some(row=>row[dims.indexOf(d)]>0)).forEach(d=>{
+    const item = document.createElement('div'); item.className='legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${colorFor(d)}"></span>${d}`;
+    legend.appendChild(item);
+  });
+
+  const tableBody = document.getElementById('tableBody'); tableBody.innerHTML='';
+  let detailRows = rows.slice().sort((a,b)=> a.hora-b.hora || b.cantidad-a.cantidad);
+  if(detailRows.length===0){ tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Sin datos</td></tr>'; return; }
+  detailRows.forEach(r=>{
+    const tr = document.createElement('tr');
+    if(proc.hasTipoCol){
+      const pillClass = r.tipo_extra==='PICKUP' ? 'pickup' : 'transfer';
+      tr.innerHTML = `<td>${String(r.hora).padStart(2,'0')}:00</td><td class="placa">${r.dimension}</td><td><span class="pill ${pillClass}">${r.tipo_extra||''}</span></td><td class="num">${r.cantidad}</td>`;
+    } else {
+      tr.innerHTML = `<td>${String(r.hora).padStart(2,'0')}:00</td><td class="placa">${r.dimension}</td><td class="num">${r.cantidad}</td>`;
+    }
+    tableBody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// Configuración: turnos y mínimos (persisten en Supabase)
+// ============================================================
+function renderTurnosTable(){
+  const body = document.getElementById('turnosBody');
+  body.innerHTML = '';
+  const entries = Object.entries(CONFIG.turnos).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(entries.length===0){ body.innerHTML = '<tr><td colspan="3" class="empty-state">Sin asignaciones todavía</td></tr>'; return; }
+  entries.forEach(([nombre,turno])=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="placa">${nombre}</td><td>${turno}</td><td></td>`;
+    const tdActions = tr.children[2];
+    const editSel = document.createElement('select');
+    ['AM','PM'].forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; if(v===turno) o.selected=true; editSel.appendChild(o); });
+    editSel.style.marginRight='8px';
+    editSel.addEventListener('change', async ()=>{
+      await supa.from('config_turnos').upsert({ responsable: nombre, turno: editSel.value });
+      CONFIG.turnos[nombre] = editSel.value; renderTurnosTable();
+    });
+    const delBtn = document.createElement('button'); delBtn.textContent='Quitar'; delBtn.className='btn btn-ghost'; delBtn.style.padding='5px 10px'; delBtn.style.fontSize='10.5px';
+    delBtn.addEventListener('click', async ()=>{
+      await supa.from('config_turnos').delete().eq('responsable', nombre);
+      delete CONFIG.turnos[nombre]; renderTurnosTable();
+    });
+    tdActions.appendChild(editSel); tdActions.appendChild(delBtn);
+    body.appendChild(tr);
+  });
+}
+
+async function addTurno(){
+  const nombre = document.getElementById('turnoNombreInput').value.trim();
+  const turno = document.getElementById('turnoValorInput').value;
+  if(!nombre) return;
+  await supa.from('config_turnos').upsert({ responsable: nombre, turno });
+  CONFIG.turnos[nombre] = turno;
+  document.getElementById('turnoNombreInput').value = '';
+  renderTurnosTable();
+}
+
+function renderMinimosTable(){
+  const body = document.getElementById('minimosBody');
+  body.innerHTML = '';
+  const labels = { recepcion:'Recepción', etiquetado:'Etiquetado', anclaje:'Anclaje' };
+  Object.entries(labels).forEach(([key,label])=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="placa">${label}</td><td class="num">${CONFIG.minimos[key]} pedidos</td><td style="text-align:right"></td>`;
+    const tdEdit = tr.children[2];
+    const input = document.createElement('input'); input.type='number'; input.min='0'; input.value=CONFIG.minimos[key]; input.style.width='80px'; input.style.textAlign='right';
+    input.addEventListener('change', async ()=>{
+      const val = Math.max(0, parseInt(input.value)||0);
+      await supa.from('config_minimos').upsert({ proceso:key, minimo:val });
+      CONFIG.minimos[key] = val; renderMinimosTable();
+    });
+    tdEdit.appendChild(input);
+    body.appendChild(tr);
+  });
+}
+
+// ============================================================
+// Carga de archivos (SheetJS -> Supabase)
+// ============================================================
+function renderDropzones(){
+  const wrap = document.getElementById('dropzonesWrap');
+  wrap.innerHTML = '';
+  Object.entries(PROCESOS).forEach(([key,proc])=>{
+    const box = document.createElement('div');
+    box.innerHTML = `
+      <div class="dropzone" id="dz-${key}">
+        <strong>${proc.label}</strong> — arrastra el Excel aquí o haz clic para seleccionar<br>
+        <span style="font-size:11px">columnas esperadas: ${Object.values(proc.columnMap).filter(Boolean).join(', ')}</span>
+      </div>
+      <div class="upload-status" id="status-${key}"></div>
+      <input type="file" id="file-${key}" accept=".xlsx,.xls" style="display:none">
+    `;
+    wrap.appendChild(box);
+    const dz = box.querySelector(`#dz-${key}`);
+    const fileInput = box.querySelector(`#file-${key}`);
+    dz.addEventListener('click', ()=> fileInput.click());
+    dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', ()=> dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('dragover'); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], key); });
+    fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0], key); });
+  });
+}
+
+async function handleFile(file, procesoKey){
+  const statusEl = document.getElementById(`status-${procesoKey}`);
+  statusEl.className = 'upload-status show loading';
+  statusEl.textContent = 'Leyendo archivo…';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet, { defval:null });
+    const map = PROCESOS[procesoKey].columnMap;
+
+    let rows = json.map(r=>{
+      const fh = r[map.fecha_hora];
+      const fecha_hora = (fh instanceof Date) ? fh.toISOString() : (fh ? new Date(fh).toISOString() : null);
+      return {
+        proceso: procesoKey,
+        codigo: r[map.codigo] != null ? String(r[map.codigo]) : null,
+        responsable: r[map.responsable],
+        fecha_hora,
+        dimension: r[map.dimension],
+        tipo_extra: map.tipo_extra ? r[map.tipo_extra] : null
+      };
+    }).filter(r => r.codigo && r.responsable && r.fecha_hora && r.dimension);
+
+    if(rows.length === 0){
+      statusEl.className = 'upload-status show error';
+      statusEl.textContent = 'No se encontraron filas válidas — revisa que las columnas coincidan con las esperadas.';
+      return;
+    }
+
+    statusEl.textContent = `Subiendo ${rows.length} filas…`;
+    const CHUNK = 500;
+    let insertadas = 0;
+    for(let i=0; i<rows.length; i+=CHUNK){
+      const chunk = rows.slice(i, i+CHUNK);
+      const { error } = await supa.from('pistoleos').upsert(chunk, { onConflict:'proceso,codigo,fecha_hora', ignoreDuplicates:true });
+      if(error) throw error;
+      insertadas += chunk.length;
+    }
+
+    statusEl.className = 'upload-status show ok';
+    statusEl.textContent = `Listo — ${rows.length} filas procesadas (duplicados exactos código+fecha se ignoran automáticamente).`;
+
+    if(procesoKey === currentProceso){ await loadFechas(); }
+  } catch(err){
+    console.error(err);
+    statusEl.className = 'upload-status show error';
+    statusEl.textContent = 'Error al subir: ' + (err.message || err);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
