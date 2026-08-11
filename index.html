@@ -302,15 +302,31 @@
 
     <div class="card">
       <div class="card-title">Turnos por responsable</div>
-      <div class="card-sub">Asigna turno Día / Noche a cada persona · aplica como filtro en las 3 vistas de proceso</div>
-      <div class="controls" style="margin-bottom:16px; flex-wrap:wrap; gap:8px">
+      <div class="card-sub">Asigna turno Día / Noche y tipo de personal · aplica como filtro en las 3 vistas de proceso</div>
+
+      <div id="pendientesWrap" style="margin-bottom:18px"></div>
+
+      <div class="controls" style="margin-bottom:12px; flex-wrap:wrap; gap:8px">
         <input type="text" id="turnoNombreInput" list="nombresList" placeholder="Nombre del responsable" style="min-width:260px;">
         <datalist id="nombresList"></datalist>
         <select id="turnoValorInput"><option value="DIA">Turno: Día</option><option value="NOCHE">Turno: Noche</option></select>
         <select id="personalValorInput"><option value="PLANILLA">Personal: Planilla</option><option value="TERCERO">Personal: Tercero</option></select>
         <button id="turnoAddBtn" class="btn">+ Asignar</button>
       </div>
-      <div class="table-wrap">
+
+      <div class="controls" style="margin-bottom:10px; flex-wrap:wrap; gap:8px">
+        <input type="text" id="turnoBuscar" placeholder="🔍 Buscar responsable…" style="min-width:220px;">
+        <select id="turnoFiltroVista">
+          <option value="TODOS">Ver: Todos</option>
+          <option value="DIA">Ver: Turno Día</option>
+          <option value="NOCHE">Ver: Turno Noche</option>
+          <option value="PLANILLA">Ver: Planilla</option>
+          <option value="TERCERO">Ver: Tercero</option>
+        </select>
+        <span class="card-sub" id="turnosContador" style="margin:0; font-family:var(--font-mono)">—</span>
+      </div>
+
+      <div class="table-wrap" style="max-height:320px; overflow-y:auto">
         <table><thead><tr><th>Responsable</th><th>Turno</th><th>Personal</th><th></th></tr></thead><tbody id="turnosBody"></tbody></table>
       </div>
     </div>
@@ -385,7 +401,8 @@ function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(con
 // El Excel trae un reloj de pared (ej. 2026-08-10 23:05:35) que debe
 // guardarse tal cual. Usar new Date()/toISOString() lo desplazaba 5 horas
 // (y cambiaba el día en turno noche), así que aquí armamos el texto a mano
-// y lo marcamos +00:00 para que Postgres guarde los mismos dígitos.
+// (la columna en Postgres es `timestamp` sin zona horaria, así que los
+// dígitos que enviamos son exactamente los que se guardan y se muestran).
 // ============================================================
 function pad2(n){ return String(n).padStart(2,'0'); }
 
@@ -396,23 +413,23 @@ function excelFechaHoraATexto(v){
   if(typeof v === 'number' && isFinite(v)){
     const d = new Date(Date.UTC(1899,11,30) + Math.round(v * 86400000));
     if(isNaN(d.getTime())) return null;
-    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}+00:00`;
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}T${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`;
   }
 
   // Objeto Date (por si alguna celda llega ya convertida).
   if(v instanceof Date){
     if(isNaN(v.getTime())) return null;
     const d = new Date(Math.round(v.getTime()/1000)*1000);
-    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}+00:00`;
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
   }
 
   const s = String(v).trim();
   // "2026-08-10 23:05:35" / "2026-08-10T23:05" (segundos opcionales)
   let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}+00:00`;
+  if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}`;
   // "10/08/2026 23:05:35" (día primero)
   m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if(m) return `${m[3]}-${pad2(m[2])}-${pad2(m[1])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}+00:00`;
+  if(m) return `${m[3]}-${pad2(m[2])}-${pad2(m[1])}T${pad2(m[4])}:${m[5]}:${pad2(m[6]||0)}`;
   return null;
 }
 
@@ -453,6 +470,8 @@ async function init(){
   document.getElementById('tipoRecepcionFilter').addEventListener('change', async ()=>{ await loadPersonas(); renderPersonasTable(); renderKPIs(); });
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
+  document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
+  document.getElementById('turnoFiltroVista').addEventListener('change', renderTurnosTable);
   document.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -579,8 +598,7 @@ async function renderView(){
   if(currentView === 'config'){
     document.getElementById('view-config').style.display = 'block';
     renderTurnosTable(); renderMinimosTable();
-    const nombres = new Set([...Object.keys(CONFIG.turnos), ...cachePersonas.map(p=>p.responsable)]);
-    document.getElementById('nombresList').innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
+    loadResponsablesConocidos();
     loadDiasCargados();
   }
 }
@@ -1157,14 +1175,146 @@ async function calcularTiempo(){
 }
 
 
+let cacheResponsablesConocidos = [];
+
+async function loadResponsablesConocidos(){
+  try{
+    const { data, error } = await supa.rpc('responsables_conocidos');
+    if(error) throw error;
+    cacheResponsablesConocidos = data || [];
+  } catch(err){ console.error(err); cacheResponsablesConocidos = []; }
+  renderPendientes();
+  renderTurnosTable();
+  const nombres = new Set([...Object.keys(CONFIG.turnos), ...cacheResponsablesConocidos.map(r=>r.responsable)]);
+  document.getElementById('nombresList').innerHTML = [...nombres].sort().map(n=>`<option value="${n}">`).join('');
+}
+
+// Detecta quiénes tienen pistoleos pero no tienen turno asignado.
+function getPendientes(){
+  return cacheResponsablesConocidos.filter(r => !CONFIG.turnos[r.responsable]);
+}
+
+function renderPendientes(){
+  const wrap = document.getElementById('pendientesWrap');
+  const pendientes = getPendientes();
+
+  if(cacheResponsablesConocidos.length === 0){
+    wrap.innerHTML = '';
+    return;
+  }
+  if(pendientes.length === 0){
+    wrap.innerHTML = `<div style="border:1px solid var(--border); border-left:3px solid var(--positive); border-radius:8px; padding:12px 14px; background:var(--surface-2)">
+      <div style="font-family:var(--font-mono); font-size:12px; color:var(--positive)">✓ Todos regularizados</div>
+      <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px">Las ${cacheResponsablesConocidos.length} personas con pistoleos tienen turno asignado.</div>
+    </div>`;
+    return;
+  }
+
+  const filas = pendientes.map(r=>{
+    const procs = (r.procesos||[]).map(p=>PROCESOS[p] ? PROCESOS[p].label : p).join(', ');
+    const nombreEsc = String(r.responsable).replace(/"/g,'&quot;');
+    return `<tr>
+      <td class="placa">${r.responsable}</td>
+      <td style="font-size:11px; color:var(--text-muted)">${procs}</td>
+      <td class="num">${r.total_pistoleos}</td>
+      <td style="font-size:11px; color:var(--text-muted)">${fmtFechaCorta(r.ultima_fecha)}</td>
+      <td style="text-align:right; white-space:nowrap">
+        <select class="pend-turno" data-nombre="${nombreEsc}" style="margin-right:6px">
+          <option value="DIA">Día</option><option value="NOCHE">Noche</option>
+        </select>
+        <select class="pend-personal" data-nombre="${nombreEsc}" style="margin-right:6px">
+          <option value="PLANILLA">Planilla</option><option value="TERCERO">Tercero</option>
+        </select>
+        <button class="btn pend-asignar" data-nombre="${nombreEsc}" style="padding:5px 10px; font-size:10.5px">Asignar</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `<div style="border:1px solid var(--border); border-left:3px solid var(--warn); border-radius:8px; padding:12px 14px; background:var(--surface-2)">
+    <div style="font-family:var(--font-mono); font-size:12px; color:var(--warn)">⚠ ${pendientes.length} pendiente${pendientes.length>1?'s':''} por regularizar</div>
+    <div style="font-size:11.5px; color:var(--text-muted); margin-top:3px; margin-bottom:10px">
+      Estas personas tienen pistoleos registrados pero no tienen turno asignado, así que aparecen como "Sin asignar" en los filtros.
+    </div>
+    <div class="table-wrap" style="max-height:240px; overflow-y:auto">
+      <table>
+        <thead><tr><th>Responsable</th><th>Procesos</th><th style="text-align:right">Pistoleos</th><th>Última fecha</th><th style="text-align:right">Asignar</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <button class="btn btn-ghost" id="asignarTodosBtn" style="margin-top:10px; padding:6px 12px; font-size:11px">Asignar todos como Día · Planilla</button>
+  </div>`;
+
+  wrap.querySelectorAll('.pend-asignar').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const nombre = btn.dataset.nombre;
+      const turno = wrap.querySelector(`.pend-turno[data-nombre="${CSS.escape(nombre)}"]`).value;
+      const tipo_personal = wrap.querySelector(`.pend-personal[data-nombre="${CSS.escape(nombre)}"]`).value;
+      btn.disabled = true; btn.textContent = '…';
+      await supa.from('config_turnos').upsert({ responsable: nombre, turno, tipo_personal });
+      CONFIG.turnos[nombre] = turno; CONFIG.personal[nombre] = tipo_personal;
+      renderPendientes(); renderTurnosTable();
+    });
+  });
+
+  const todosBtn = document.getElementById('asignarTodosBtn');
+  if(todosBtn){
+    todosBtn.addEventListener('click', async ()=>{
+      todosBtn.disabled = true; todosBtn.textContent = 'Asignando…';
+      const filas = getPendientes().map(r=>({ responsable:r.responsable, turno:'DIA', tipo_personal:'PLANILLA' }));
+      await supa.from('config_turnos').upsert(filas);
+      filas.forEach(f=>{ CONFIG.turnos[f.responsable]='DIA'; CONFIG.personal[f.responsable]='PLANILLA'; });
+      renderPendientes(); renderTurnosTable();
+    });
+  }
+}
+
 function renderTurnosTable(){
   const body = document.getElementById('turnosBody');
   body.innerHTML = '';
   const turnoLabels = { DIA:'Día', NOCHE:'Noche' };
   const personalLabels = { PLANILLA:'Planilla', TERCERO:'Tercero' };
-  const entries = Object.entries(CONFIG.turnos).sort((a,b)=>a[0].localeCompare(b[0]));
-  if(entries.length===0){ body.innerHTML = '<tr><td colspan="4" class="empty-state">Sin asignaciones todavía</td></tr>'; return; }
+
+  const buscar = (document.getElementById('turnoBuscar').value || '').trim().toLowerCase();
+  const vista = document.getElementById('turnoFiltroVista').value;
+  const contador = document.getElementById('turnosContador');
+
+  // Orden: turno (Día primero), luego personal, luego nombre — así queda
+  // agrupado visualmente en vez de una lista larga sin estructura.
+  const ordenTurno = { DIA:0, NOCHE:1 };
+  const ordenPersonal = { PLANILLA:0, TERCERO:1 };
+  let entries = Object.entries(CONFIG.turnos).sort((a,b)=>{
+    const ta = ordenTurno[a[1]] ?? 9, tb = ordenTurno[b[1]] ?? 9;
+    if(ta !== tb) return ta - tb;
+    const pa = ordenPersonal[CONFIG.personal[a[0]]||'PLANILLA'], pb = ordenPersonal[CONFIG.personal[b[0]]||'PLANILLA'];
+    if(pa !== pb) return pa - pb;
+    return a[0].localeCompare(b[0]);
+  });
+
+  const totalAsignados = entries.length;
+  entries = entries.filter(([nombre,turno])=>{
+    if(buscar && !nombre.toLowerCase().includes(buscar)) return false;
+    const personal = CONFIG.personal[nombre] || 'PLANILLA';
+    if(vista === 'DIA' || vista === 'NOCHE') return turno === vista;
+    if(vista === 'PLANILLA' || vista === 'TERCERO') return personal === vista;
+    return true;
+  });
+
+  contador.textContent = entries.length === totalAsignados
+    ? `${totalAsignados} asignado${totalAsignados===1?'':'s'}`
+    : `${entries.length} de ${totalAsignados}`;
+
+  if(totalAsignados===0){ body.innerHTML = '<tr><td colspan="4" class="empty-state">Sin asignaciones todavía</td></tr>'; return; }
+  if(entries.length===0){ body.innerHTML = '<tr><td colspan="4" class="empty-state">Nadie coincide con la búsqueda / filtro</td></tr>'; return; }
+
+  let turnoPrevio = null;
   entries.forEach(([nombre,turno])=>{
+    // Separador de grupo cuando cambia el turno (solo si se ven ambos)
+    if(vista === 'TODOS' && !buscar && turno !== turnoPrevio){
+      const sep = document.createElement('tr');
+      sep.innerHTML = `<td colspan="4" style="padding:8px 0 4px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase; border-bottom:1px solid var(--border)">Turno ${turnoLabels[turno]||turno}</td>`;
+      body.appendChild(sep);
+      turnoPrevio = turno;
+    }
     const personal = CONFIG.personal[nombre] || 'PLANILLA';
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="placa">${nombre}</td><td>${turnoLabels[turno]||turno}</td><td>${personalLabels[personal]||personal}</td><td></td>`;
@@ -1189,7 +1339,7 @@ function renderTurnosTable(){
     const delBtn = document.createElement('button'); delBtn.textContent='Quitar'; delBtn.className='btn btn-ghost'; delBtn.style.padding='5px 10px'; delBtn.style.fontSize='10.5px';
     delBtn.addEventListener('click', async ()=>{
       await supa.from('config_turnos').delete().eq('responsable', nombre);
-      delete CONFIG.turnos[nombre]; delete CONFIG.personal[nombre]; renderTurnosTable();
+      delete CONFIG.turnos[nombre]; delete CONFIG.personal[nombre]; renderTurnosTable(); renderPendientes();
     });
     tdActions.appendChild(editSel); tdActions.appendChild(persSel); tdActions.appendChild(delBtn);
     body.appendChild(tr);
@@ -1205,7 +1355,7 @@ async function addTurno(){
   CONFIG.turnos[nombre] = turno;
   CONFIG.personal[nombre] = tipo_personal;
   document.getElementById('turnoNombreInput').value = '';
-  renderTurnosTable();
+  renderTurnosTable(); renderPendientes();
 }
 
 function renderMinimosTable(){
@@ -1336,7 +1486,21 @@ async function stageFile(file, procesoKey){
 
     staged[procesoKey] = rows;
     statusEl.className = 'upload-status show ok';
-    statusEl.textContent = `✓ ${file.name} — ${rows.length} filas listas para subir (todavía no se guardó).`;
+    // Vista previa de fecha/hora: muestra el rango detectado y las primeras
+    // filas para poder contrastar contra el Excel ANTES de guardar.
+    const ordenadas = rows.map(r=>r.fecha_hora).sort();
+    const muestra = rows.slice(0,3).map(r=>
+      `<div style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); padding:1px 0">
+        ${String(r.fecha_hora).replace('T',' ')} · ${r.responsable}
+      </div>`).join('');
+    statusEl.innerHTML = `✓ ${file.name} — ${rows.length} filas listas para subir (todavía no se guardó).
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px">
+          Rango detectado: ${String(ordenadas[0]).replace('T',' ')} → ${String(ordenadas[ordenadas.length-1]).replace('T',' ')}
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px">Primeras filas (compara con el Excel):</div>
+        ${muestra}
+      </div>`;
     dz.style.borderColor = 'var(--positive)';
     actualizarBotonGuardar();
   } catch(err){
@@ -1386,6 +1550,9 @@ async function guardarTodo(){
   resumen.innerHTML = `<span style="color:var(--positive)">✅ Confirmado —</span> ${resultados.join(' · ')}`;
   actualizarBotonGuardar();
   if(procesosAGuardar.some(([k])=>k===currentProceso)) await loadFechas();
+  // Puede haber nombres nuevos sin turno: refrescamos pendientes y días.
+  await loadResponsablesConocidos();
+  loadDiasCargados();
 }
 
 init();
