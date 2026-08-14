@@ -769,9 +769,6 @@ async function loadConfig(){
 async function loadFechas(){
   const sel = document.getElementById('fechaSelector');
   sel.innerHTML = '';
-  // Cada cambio de proceso vuelve a empezar en modo Día — evita arrastrar
-  // un rango que no tenga sentido para el nuevo proceso.
-  modoFecha = 'DIA';
   try{
     const { data, error } = await supa.rpc('fechas_disponibles', { p_proceso: currentProceso });
     if(error) throw error;
@@ -779,7 +776,6 @@ async function loadFechas(){
     if(fechasDisponiblesCache.length===0){
       sel.innerHTML = '<option value="">Sin datos cargados</option>';
       currentFecha = null;
-      rangoInicio = null; rangoFin = null;
       renderModoFechaUI();
       return;
     }
@@ -789,13 +785,18 @@ async function loadFechas(){
       opt.textContent = fmtFechaConAnio(row.fecha) + ` (${row.total})`;
       sel.appendChild(opt);
     });
-    currentFecha = fechasDisponiblesCache[0].fecha;
+    // El modo (Día/Rango/Todo) y la fecha elegida se mantienen al cambiar
+    // de proceso — solo se ajustan si dejan de tener sentido (la fecha ya
+    // no tiene data en este proceso).
+    if(!currentFecha || !fechasDisponiblesCache.some(f=>f.fecha===currentFecha)){
+      currentFecha = fechasDisponiblesCache[0].fecha;
+    }
     sel.value = currentFecha;
-    // Rango por defecto: los últimos días disponibles (hasta 7), para que
-    // al cambiar a modo Rango ya haya algo sensato cargado.
-    const ordenAsc = [...fechasDisponiblesCache].sort((a,b)=> a.fecha < b.fecha ? -1 : 1);
-    rangoFin = ordenAsc[ordenAsc.length-1].fecha;
-    rangoInicio = ordenAsc[Math.max(0, ordenAsc.length-7)].fecha;
+    if(!rangoInicio || !rangoFin){
+      const ordenAsc = [...fechasDisponiblesCache].sort((a,b)=> a.fecha < b.fecha ? -1 : 1);
+      rangoFin = ordenAsc[ordenAsc.length-1].fecha;
+      rangoInicio = ordenAsc[Math.max(0, ordenAsc.length-7)].fecha;
+    }
     renderModoFechaUI();
   } catch(err){
     console.error(err);
