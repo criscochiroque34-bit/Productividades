@@ -47,6 +47,38 @@
   input[type=date]:focus{ outline:none; border-color:var(--primary); }
 
   .tab.tab-disabled{ opacity:0.4; cursor:default; }
+
+  /* Botón "Filtros" + panel desplegable interactivo */
+  .filtros-trigger-wrap{ position:relative; }
+  .filtros-btn{ display:inline-flex; align-items:center; gap:7px; }
+  .filtros-btn.has-active{ color:#C9B8FF; border-color:var(--primary); background:var(--primary-dim); }
+  .filtros-icon{ font-size:11px; }
+  .filtros-count-badge{ background:var(--primary); color:#fff; border-radius:999px; font-size:10px; font-family:var(--font-mono); font-weight:700; min-width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; }
+
+  .filtros-panel{
+    position:absolute; top:calc(100% + 8px); left:0; z-index:20; min-width:280px;
+    background:var(--surface-raised); border:1px solid var(--border-strong); border-radius:12px;
+    padding:16px; box-shadow:0 12px 32px rgba(0,0,0,0.45);
+    animation:filtrosPanelIn 0.12s ease-out;
+  }
+  @keyframes filtrosPanelIn{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:translateY(0); } }
+  .filtro-seccion{ margin-bottom:14px; }
+  .filtro-seccion:last-of-type{ margin-bottom:0; }
+  .filtro-seccion-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+  .filtro-pills{ display:flex; flex-wrap:wrap; gap:6px; }
+  .filtro-pill{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); background:var(--surface); border:1px solid var(--border); padding:6px 11px; border-radius:7px; cursor:pointer; user-select:none; transition:all 0.1s; }
+  .filtro-pill:hover{ color:var(--text-primary); border-color:var(--border-strong); }
+  .filtro-pill.active{ background:var(--primary-dim); color:#C9B8FF; border-color:var(--primary); }
+  .filtros-panel-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
+  .filtros-live-count{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
+  .filtros-limpiar{ background:transparent; border:none; color:var(--primary); font-family:var(--font-mono); font-size:11px; cursor:pointer; padding:0; }
+  .filtros-limpiar:hover{ text-decoration:underline; }
+  .filtros-limpiar:disabled{ color:var(--text-muted); cursor:default; text-decoration:none; }
+
+  .filtros-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .filtro-chip{ display:inline-flex; align-items:center; gap:6px; background:var(--primary-dim); color:#C9B8FF; border:1px solid var(--primary); border-radius:999px; padding:5px 6px 5px 11px; font-family:var(--font-mono); font-size:11px; }
+  .filtro-chip .x{ cursor:pointer; opacity:0.7; width:15px; height:15px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; }
+  .filtro-chip .x:hover{ opacity:1; background:rgba(255,255,255,0.12); }
   .placeholder-modo{ padding:40px 20px; text-align:center; color:var(--text-muted); font-size:12.5px; }
 
   /* Acordeón "Por Flota" */
@@ -205,14 +237,54 @@
     <div class="card">
       <div class="card-title">Productividad por responsable</div>
       <div class="card-sub" id="narrativaDia">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
-      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap">
-        <select id="turnoFilter">
+      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; position:relative">
+        <div class="filtros-trigger-wrap">
+          <button class="btn btn-ghost filtros-btn" id="filtrosBtn" type="button">
+            <span class="filtros-icon">▤</span> Filtros
+            <span class="filtros-count-badge" id="filtrosCountBadge" style="display:none">0</span>
+          </button>
+          <div class="filtros-panel" id="filtrosPanel" style="display:none">
+            <div class="filtro-seccion">
+              <div class="filtro-seccion-label">Turno</div>
+              <div class="filtro-pills" data-filtro="turno">
+                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+                <div class="filtro-pill" data-valor="DIA">Día</div>
+                <div class="filtro-pill" data-valor="NOCHE">Noche</div>
+                <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
+              </div>
+            </div>
+            <div class="filtro-seccion">
+              <div class="filtro-seccion-label">Personal</div>
+              <div class="filtro-pills" data-filtro="personal">
+                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+                <div class="filtro-pill" data-valor="PLANILLA">Planilla</div>
+                <div class="filtro-pill" data-valor="TERCERO">Tercero</div>
+                <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
+              </div>
+            </div>
+            <div class="filtro-seccion" id="filtroTipoSeccion" style="display:none">
+              <div class="filtro-seccion-label">Tipo de recepción</div>
+              <div class="filtro-pills" data-filtro="tipo">
+                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+                <div class="filtro-pill" data-valor="PICKUP">Pickup</div>
+                <div class="filtro-pill" data-valor="TRANSFERENCIA BU">Transferencia BU</div>
+              </div>
+            </div>
+            <div class="filtros-panel-footer">
+              <span class="filtros-live-count" id="filtrosLiveCount">— responsables</span>
+              <button class="filtros-limpiar" id="filtrosLimpiarBtn" type="button">Limpiar filtros</button>
+            </div>
+          </div>
+        </div>
+        <div class="filtros-chips" id="filtrosChips"></div>
+        <span class="card-sub" id="minimoBadge" style="margin:0 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)">mínimo: 0 pedidos</span>
+        <select id="turnoFilter" style="display:none">
           <option value="TODOS">Turno: Todos</option>
           <option value="DIA">Turno: Día</option>
           <option value="NOCHE">Turno: Noche</option>
           <option value="SIN_ASIGNAR">Turno: Sin asignar</option>
         </select>
-        <select id="personalFilter">
+        <select id="personalFilter" style="display:none">
           <option value="TODOS">Personal: Todos</option>
           <option value="PLANILLA">Personal: Planilla</option>
           <option value="TERCERO">Personal: Tercero</option>
@@ -223,7 +295,6 @@
           <option value="PICKUP">Tipo: Pickup</option>
           <option value="TRANSFERENCIA BU">Tipo: Transferencia BU</option>
         </select>
-        <span class="card-sub" id="minimoBadge" style="margin:0; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)">mínimo: 0 pedidos</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -565,6 +636,28 @@ async function init(){
     await loadProceso();
   });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
+  document.querySelectorAll('.filtro-pill').forEach(pill=>{
+    pill.addEventListener('click', ()=>{
+      const filtroKey = pill.closest('.filtro-pills').dataset.filtro;
+      setFiltroPill(filtroKey, pill.dataset.valor);
+    });
+  });
+  document.getElementById('filtrosBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const panel = document.getElementById('filtrosPanel');
+    const abrir = panel.style.display === 'none';
+    panel.style.display = abrir ? 'block' : 'none';
+    if(abrir) updateFiltrosLiveCount();
+  });
+  document.getElementById('filtrosPanel').addEventListener('click', (e)=> e.stopPropagation());
+  document.addEventListener('click', ()=>{
+    document.getElementById('filtrosPanel').style.display = 'none';
+  });
+  document.getElementById('filtrosLimpiarBtn').addEventListener('click', ()=>{
+    setFiltroPill('turno', 'TODOS');
+    setFiltroPill('personal', 'TODOS');
+    if(currentProceso === 'recepcion') setFiltroPill('tipo', 'TODOS');
+  });
   document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
   document.getElementById('diagBtn').addEventListener('click', diagnosticoFechaHora);
   document.getElementById('turnoFiltroVista').addEventListener('change', renderTurnosTable);
@@ -776,9 +869,9 @@ async function loadProceso(){
     select.addEventListener('change', ()=>{ renderChartAndTable(); });
     filterWrap.appendChild(select);
   }
-  const tipoRecepcionFilter = document.getElementById('tipoRecepcionFilter');
-  tipoRecepcionFilter.style.display = currentProceso === 'recepcion' ? 'inline-block' : 'none';
-  if(currentProceso !== 'recepcion') tipoRecepcionFilter.value = 'TODOS';
+  document.getElementById('filtroTipoSeccion').style.display = currentProceso === 'recepcion' ? 'block' : 'none';
+  if(currentProceso !== 'recepcion') setFiltroPill('tipo', 'TODOS', { silent:true });
+  else renderFiltrosChipsYBadge();
   const detailHead = document.getElementById('detailHead');
   detailHead.innerHTML = proc.hasTipoCol
     ? '<tr><th>Hora</th><th>Placa</th><th>Tipo</th><th style="text-align:right">Pistoleos</th></tr>'
@@ -977,6 +1070,60 @@ function getFilteredPersonas(){
     if(personalSel !== 'TODOS' && personal !== personalSel) return false;
     return true;
   });
+}
+
+// ============================================================
+// Panel de filtros interactivo (Turno / Personal / Tipo)
+// Los <select> ocultos siguen siendo la fuente de verdad — las pills
+// solo los reflejan y disparan su 'change', así toda la lógica que ya
+// lee turnoFilter/personalFilter/tipoRecepcionFilter sigue funcionando.
+// ============================================================
+const FILTRO_SELECT_ID = { turno:'turnoFilter', personal:'personalFilter', tipo:'tipoRecepcionFilter' };
+const FILTRO_LABELS = {
+  turno: { DIA:'Día', NOCHE:'Noche', SIN_ASIGNAR:'Sin asignar' },
+  personal: { PLANILLA:'Planilla', TERCERO:'Tercero', SIN_ASIGNAR:'Sin asignar' },
+  tipo: { PICKUP:'Pickup', 'TRANSFERENCIA BU':'Transferencia BU' }
+};
+
+function setFiltroPill(filtroKey, valor, opts={}){
+  const sel = document.getElementById(FILTRO_SELECT_ID[filtroKey]);
+  sel.value = valor;
+  document.querySelectorAll(`.filtro-pills[data-filtro="${filtroKey}"] .filtro-pill`).forEach(p=>{
+    p.classList.toggle('active', p.dataset.valor === valor);
+  });
+  if(!opts.silent) sel.dispatchEvent(new Event('change'));
+  renderFiltrosChipsYBadge();
+  updateFiltrosLiveCount();
+}
+
+function renderFiltrosChipsYBadge(){
+  const activos = [];
+  const turno = document.getElementById('turnoFilter').value;
+  const personal = document.getElementById('personalFilter').value;
+  const tipo = document.getElementById('tipoRecepcionFilter').value;
+  if(turno !== 'TODOS') activos.push({ key:'turno', label:'Turno: ' + (FILTRO_LABELS.turno[turno]||turno) });
+  if(personal !== 'TODOS') activos.push({ key:'personal', label:'Personal: ' + (FILTRO_LABELS.personal[personal]||personal) });
+  if(currentProceso === 'recepcion' && tipo !== 'TODOS') activos.push({ key:'tipo', label:'Tipo: ' + (FILTRO_LABELS.tipo[tipo]||tipo) });
+
+  const chipsWrap = document.getElementById('filtrosChips');
+  chipsWrap.innerHTML = activos.map(f=>
+    `<div class="filtro-chip">${f.label}<span class="x" data-key="${f.key}">✕</span></div>`
+  ).join('');
+  chipsWrap.querySelectorAll('.x').forEach(x=>{
+    x.addEventListener('click', ()=> setFiltroPill(x.dataset.key, 'TODOS'));
+  });
+
+  const badge = document.getElementById('filtrosCountBadge');
+  const btn = document.getElementById('filtrosBtn');
+  badge.style.display = activos.length > 0 ? 'inline-flex' : 'none';
+  badge.textContent = activos.length;
+  btn.classList.toggle('has-active', activos.length > 0);
+  document.getElementById('filtrosLimpiarBtn').disabled = activos.length === 0;
+}
+
+function updateFiltrosLiveCount(){
+  const n = getFilteredPersonas().length;
+  document.getElementById('filtrosLiveCount').textContent = `${n} responsable${n===1?'':'s'}`;
 }
 
 function renderKPIs(){
@@ -1860,6 +2007,16 @@ async function stageFile(file, procesoKey){
     const columnasArchivo = json.length > 0 ? Object.keys(json[0]) : [];
     const flotaColumnaExiste = !map.flota || columnasArchivo.includes(map.flota);
 
+    // Si la columna de código está guardada como NÚMERO en el Excel (en vez
+    // de texto), y tiene más de 15 dígitos, Excel ya la truncó por dentro —
+    // no hay forma de recuperar esos dígitos después. Se detecta ANTES de
+    // guardar, porque una vez en la base el daño ya está hecho y silencioso
+    // (los códigos no calzan entre Recepción y Anclaje, sin ningún error).
+    const codigoEsNumeroLargo = json.some(r => {
+      const v = r[map.codigo];
+      return typeof v === 'number' && Math.abs(v) > Number.MAX_SAFE_INTEGER;
+    });
+
     let rows = json.map(r=>{
       return {
         proceso: procesoKey,
@@ -1871,6 +2028,17 @@ async function stageFile(file, procesoKey){
         flota: map.flota ? (r[map.flota] != null ? String(r[map.flota]).trim() : null) : null
       };
     }).filter(r => r.codigo && r.responsable && r.fecha_hora && r.dimension);
+
+    if(codigoEsNumeroLargo){
+      statusEl.className = 'upload-status show error';
+      statusEl.innerHTML = `⚠ La columna "${map.codigo}" está guardada como <strong>número</strong> en este Excel, y tiene códigos de más de 15 dígitos.
+        Excel ya los truncó internamente (ej. …538734 pasa a …538700) — no hay forma de arreglarlo después de subido, y los códigos no van a calzar entre archivos.
+        <div style="margin-top:6px">Antes de volver a intentar: selecciona esa columna en el Excel → clic derecho → Formato de celdas → <strong>Texto</strong> → vuelve a escribir/pegar los valores (cambiar el formato solo no revierte el truncamiento ya hecho) → guarda y sube de nuevo.</div>`;
+      dz.style.borderColor = 'var(--warn)';
+      staged[procesoKey] = null;
+      actualizarBotonGuardar();
+      return;
+    }
 
     // Dedup DENTRO del archivo: la clave es código + fecha/hora exacta.
     // Un mismo código con otra hora es un reescaneo real y sí se conserva.
