@@ -48,37 +48,13 @@
 
   .tab.tab-disabled{ opacity:0.4; cursor:default; }
 
-  /* Botón "Filtros" + panel desplegable interactivo */
-  .filtros-trigger-wrap{ position:relative; }
-  .filtros-btn{ display:inline-flex; align-items:center; gap:7px; }
-  .filtros-btn.has-active{ color:#C9B8FF; border-color:var(--primary); background:var(--primary-dim); }
-  .filtros-icon{ font-size:11px; }
-  .filtros-count-badge{ background:var(--primary); color:#fff; border-radius:999px; font-size:10px; font-family:var(--font-mono); font-weight:700; min-width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px; }
-
-  .filtros-panel{
-    position:absolute; top:calc(100% + 8px); left:0; z-index:20; min-width:280px;
-    background:var(--surface-raised); border:1px solid var(--border-strong); border-radius:12px;
-    padding:16px; box-shadow:0 12px 32px rgba(0,0,0,0.45);
-    animation:filtrosPanelIn 0.12s ease-out;
-  }
-  @keyframes filtrosPanelIn{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:translateY(0); } }
-  .filtro-seccion{ margin-bottom:14px; }
-  .filtro-seccion:last-of-type{ margin-bottom:0; }
-  .filtro-seccion-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+  /* Filtros: grupos de pills, siempre visibles y separados */
+  .filtro-grupo{ display:flex; flex-direction:column; gap:8px; }
+  .filtro-grupo-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; }
   .filtro-pills{ display:flex; flex-wrap:wrap; gap:6px; }
   .filtro-pill{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); background:var(--surface); border:1px solid var(--border); padding:6px 11px; border-radius:7px; cursor:pointer; user-select:none; transition:all 0.1s; }
   .filtro-pill:hover{ color:var(--text-primary); border-color:var(--border-strong); }
   .filtro-pill.active{ background:var(--primary-dim); color:#C9B8FF; border-color:var(--primary); }
-  .filtros-panel-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding-top:12px; border-top:1px solid var(--border); }
-  .filtros-live-count{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); }
-  .filtros-limpiar{ background:transparent; border:none; color:var(--primary); font-family:var(--font-mono); font-size:11px; cursor:pointer; padding:0; }
-  .filtros-limpiar:hover{ text-decoration:underline; }
-  .filtros-limpiar:disabled{ color:var(--text-muted); cursor:default; text-decoration:none; }
-
-  .filtros-chips{ display:flex; flex-wrap:wrap; gap:6px; }
-  .filtro-chip{ display:inline-flex; align-items:center; gap:6px; background:var(--primary-dim); color:#C9B8FF; border:1px solid var(--primary); border-radius:999px; padding:5px 6px 5px 11px; font-family:var(--font-mono); font-size:11px; }
-  .filtro-chip .x{ cursor:pointer; opacity:0.7; width:15px; height:15px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; }
-  .filtro-chip .x:hover{ opacity:1; background:rgba(255,255,255,0.12); }
   .placeholder-modo{ padding:40px 20px; text-align:center; color:var(--text-muted); font-size:12.5px; }
 
   /* Acordeón "Por Flota" */
@@ -245,62 +221,42 @@
     <div class="card">
       <div class="card-title">Productividad por responsable</div>
       <div class="card-sub" id="narrativaDia">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
-      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; position:relative">
-        <div class="filtros-trigger-wrap">
-          <button class="btn btn-ghost filtros-btn" id="filtrosBtn" type="button">
-            <span class="filtros-icon">▤</span> Filtros
-            <span class="filtros-count-badge" id="filtrosCountBadge" style="display:none">0</span>
-          </button>
-          <div class="filtros-panel" id="filtrosPanel" style="display:none">
-            <div class="filtro-seccion">
-              <div class="filtro-seccion-label">Turno</div>
-              <div class="filtro-pills" data-filtro="turno">
-                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-                <div class="filtro-pill" data-valor="DIA">Día</div>
-                <div class="filtro-pill" data-valor="NOCHE">Noche</div>
-                <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
-              </div>
-            </div>
-            <div class="filtro-seccion">
-              <div class="filtro-seccion-label">Personal</div>
-              <div class="filtro-pills" data-filtro="personal">
-                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-                <div class="filtro-pill" data-valor="PLANILLA">Planilla</div>
-                <div class="filtro-pill" data-valor="TERCERO">Tercero</div>
-                <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
-              </div>
-            </div>
-            <div class="filtro-seccion" id="filtroTipoSeccion" style="display:none">
-              <div class="filtro-seccion-label">Tipo de recepción</div>
-              <div class="filtro-pills" data-filtro="tipo">
-                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-                <div class="filtro-pill" data-valor="PICKUP">Pickup</div>
-                <div class="filtro-pill" data-valor="TRANSFERENCIA BU">Transferencia BU</div>
-              </div>
-            </div>
-            <div class="filtro-seccion">
-              <div class="filtro-seccion-label">Mínimo de pedidos</div>
-              <div style="display:flex; align-items:center; gap:8px">
-                <input type="number" id="minimoInput" min="0" value="0" style="width:80px; text-align:right">
-                <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted)">oculta a quien tenga menos</span>
-              </div>
-            </div>
-            <div class="filtro-seccion">
-              <div class="filtro-seccion-label">Revisión</div>
-              <div class="filtro-pills" data-filtro="anomalia">
-                <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-                <div class="filtro-pill" data-valor="SOSPECHOSOS">Solo sospechosos</div>
-                <div class="filtro-pill" data-valor="LIMPIOS">Solo limpios</div>
-              </div>
-            </div>
-            <div class="filtros-panel-footer">
-              <span class="filtros-live-count" id="filtrosLiveCount">— responsables</span>
-              <button class="filtros-limpiar" id="filtrosLimpiarBtn" type="button">Limpiar filtros</button>
-            </div>
+      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; align-items:flex-start; gap:18px">
+        <div class="filtro-grupo">
+          <div class="filtro-grupo-label">Turno</div>
+          <div class="filtro-pills" data-filtro="turno">
+            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+            <div class="filtro-pill" data-valor="DIA">Día</div>
+            <div class="filtro-pill" data-valor="NOCHE">Noche</div>
+            <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
           </div>
         </div>
-        <div class="filtros-chips" id="filtrosChips"></div>
-        <span class="card-sub" id="minimoBadge" style="margin:0 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)">mínimo: 0 pedidos</span>
+        <div class="filtro-grupo">
+          <div class="filtro-grupo-label">Personal</div>
+          <div class="filtro-pills" data-filtro="personal">
+            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+            <div class="filtro-pill" data-valor="PLANILLA">Planilla</div>
+            <div class="filtro-pill" data-valor="TERCERO">Tercero</div>
+            <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
+          </div>
+        </div>
+        <div class="filtro-grupo" id="filtroTipoSeccion" style="display:none">
+          <div class="filtro-grupo-label">Tipo de recepción</div>
+          <div class="filtro-pills" data-filtro="tipo">
+            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+            <div class="filtro-pill" data-valor="PICKUP">Pickup</div>
+            <div class="filtro-pill" data-valor="TRANSFERENCIA BU">Transferencia BU</div>
+          </div>
+        </div>
+        <div class="filtro-grupo">
+          <div class="filtro-grupo-label">Revisión</div>
+          <div class="filtro-pills" data-filtro="anomalia">
+            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
+            <div class="filtro-pill" data-valor="SOSPECHOSOS">Solo sospechosos</div>
+            <div class="filtro-pill" data-valor="LIMPIOS">Solo limpios</div>
+          </div>
+        </div>
+        <span class="card-sub" id="minimoBadge" style="margin:22px 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)" title="Se ajusta en Configuración → Umbrales">mínimo: 0 pedidos</span>
         <select id="turnoFilter" style="display:none">
           <option value="TODOS">Turno: Todos</option>
           <option value="DIA">Turno: Día</option>
@@ -728,29 +684,6 @@ async function init(){
       setFiltroPill(filtroKey, pill.dataset.valor);
     });
   });
-  document.getElementById('filtrosBtn').addEventListener('click', (e)=>{
-    e.stopPropagation();
-    const panel = document.getElementById('filtrosPanel');
-    const abrir = panel.style.display === 'none';
-    panel.style.display = abrir ? 'block' : 'none';
-    if(abrir) updateFiltrosLiveCount();
-  });
-  document.getElementById('filtrosPanel').addEventListener('click', (e)=> e.stopPropagation());
-  document.addEventListener('click', ()=>{
-    document.getElementById('filtrosPanel').style.display = 'none';
-  });
-  document.getElementById('filtrosLimpiarBtn').addEventListener('click', ()=>{
-    document.getElementById('minimoInput').value = CONFIG.minimos[currentProceso] || 0;
-    setFiltroPill('turno', 'TODOS', { silent:true });
-    setFiltroPill('personal', 'TODOS', { silent:true });
-    setFiltroPill('anomalia', 'TODOS', { silent:true });
-    if(currentProceso === 'recepcion') setFiltroPill('tipo', 'TODOS', { silent:true });
-    renderPersonasTable(); renderKPIs();
-  });
-  document.getElementById('minimoInput').addEventListener('input', ()=>{
-    renderFiltrosChipsYBadge(); updateFiltrosLiveCount();
-    renderPersonasTable(); renderKPIs();
-  });
   document.getElementById('anomaliaFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
   document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
   document.getElementById('diagBtn').addEventListener('click', diagnosticoFechaHora);
@@ -1002,11 +935,7 @@ async function loadProceso(){
   }
   document.getElementById('filtroTipoSeccion').style.display = currentProceso === 'recepcion' ? 'block' : 'none';
   if(currentProceso !== 'recepcion') setFiltroPill('tipo', 'TODOS', { silent:true });
-  if(document.getElementById('minimoInput').dataset.proceso !== currentProceso){
-    document.getElementById('minimoInput').value = CONFIG.minimos[currentProceso] || 0;
-    document.getElementById('minimoInput').dataset.proceso = currentProceso;
-  }
-  renderFiltrosChipsYBadge();
+  document.getElementById('minimoBadge').textContent = 'mínimo: ' + (CONFIG.minimos[currentProceso]||0) + ' pedidos';
   const detailHead = document.getElementById('detailHead');
   detailHead.innerHTML = proc.hasTipoCol
     ? '<tr><th>Hora</th><th>Placa</th><th>Tipo</th><th style="text-align:right">Pistoleos</th></tr>'
@@ -1048,7 +977,7 @@ async function loadPersonas(){
     const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
 
     if(modoFecha === 'DIA'){
-      const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra });
+      const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0 });
       if(error) throw error;
       // Nombres normalizados (productividad / total_pedidos) para que los
       // filtros de turno/personal/mínimo funcionen igual en los 3 modos.
@@ -1059,7 +988,7 @@ async function loadPersonas(){
     } else {
       const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
       const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
-      const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3, p_tipo_extra, p_fecha_inicio, p_fecha_fin });
+      const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3, p_tipo_extra, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0 });
       if(error) throw error;
       cachePersonas = (data||[]).map(r=>({
         responsable: r.responsable, total_pedidos: r.total_pedidos, productividad: r.productividad_promedio,
@@ -1142,14 +1071,14 @@ async function loadFlota(){
   }
   listWrap.innerHTML = '<div class="card"><div class="empty-state">Cargando…</div></div>';
 
-  const params = { p_umbral_min: 3, p_fecha: null, p_fecha_inicio: null, p_fecha_fin: null };
+  const params = { p_umbral_min: 3, p_fecha: null, p_fecha_inicio: null, p_fecha_fin: null, p_minimo: CONFIG.minimos.anclaje||0 };
   if(modoFechaFlota === 'DIA') params.p_fecha = currentFlotaFecha;
   else if(modoFechaFlota === 'RANGO'){ params.p_fecha_inicio = flotaRangoInicio; params.p_fecha_fin = flotaRangoFin; }
 
   try{
     const { data, error } = await supa.rpc('anclaje_por_flota', params);
     if(error) throw error;
-    cacheFlota = filtrarPorMinimo('anclaje', data || []);
+    cacheFlota = data || [];
   } catch(err){ console.error(err); cacheFlota = []; }
   renderFlota();
 }
@@ -1229,25 +1158,14 @@ function renderFlota(){
 // ============================================================
 // KPIs
 // ============================================================
-// Aplica el mínimo de pedidos configurado para ESE proceso — punto único
-// para que Resumen, Tendencia y Flota (que no pasan por getFilteredPersonas)
-// también lo respeten, y no solo la tabla "Por responsable".
-function filtrarPorMinimo(proceso, rows){
-  const minimo = CONFIG.minimos[proceso] || 0;
-  if(minimo <= 0) return rows;
-  return rows.filter(r => Number(r.total_pedidos) >= minimo);
-}
-
 function getFilteredPersonas(){
-  // El mínimo ahora vive en el panel de filtros (visible y aplicado al
-  // instante). CONFIG.minimos sigue siendo el valor por defecto que se
-  // guarda en Supabase por proceso.
-  const minimo = Number(document.getElementById('minimoInput').value) || 0;
+  // El mínimo YA NO es un filtro visual: se aplica dentro del cálculo en
+  // SQL (excluye sesiones chicas antes de sumar), así que cachePersonas
+  // llega sin esas sesiones contadas. Aquí solo quedan turno/personal/anomalía.
   const turnoSel = document.getElementById('turnoFilter').value;
   const personalSel = document.getElementById('personalFilter').value;
   const anomaliaSel = document.getElementById('anomaliaFilter').value;
   return cachePersonas.filter(p=>{
-    if(Number(p.total_pedidos) < minimo) return false;
     const turno = CONFIG.turnos[p.responsable] || 'SIN_ASIGNAR';
     if(turnoSel !== 'TODOS' && turno !== turnoSel) return false;
     const personal = CONFIG.personal[p.responsable] || 'SIN_ASIGNAR';
@@ -1304,18 +1222,13 @@ async function loadAnomalias(){
 }
 
 // ============================================================
-// Panel de filtros interactivo (Turno / Personal / Tipo)
+// Filtros por pill (Turno / Personal / Tipo / Revisión)
 // Los <select> ocultos siguen siendo la fuente de verdad — las pills
 // solo los reflejan y disparan su 'change', así toda la lógica que ya
-// lee turnoFilter/personalFilter/tipoRecepcionFilter sigue funcionando.
+// lee turnoFilter/personalFilter/tipoRecepcionFilter/anomaliaFilter
+// sigue funcionando igual.
 // ============================================================
 const FILTRO_SELECT_ID = { turno:'turnoFilter', personal:'personalFilter', tipo:'tipoRecepcionFilter', anomalia:'anomaliaFilter' };
-const FILTRO_LABELS = {
-  turno: { DIA:'Día', NOCHE:'Noche', SIN_ASIGNAR:'Sin asignar' },
-  personal: { PLANILLA:'Planilla', TERCERO:'Tercero', SIN_ASIGNAR:'Sin asignar' },
-  tipo: { PICKUP:'Pickup', 'TRANSFERENCIA BU':'Transferencia BU' },
-  anomalia: { SOSPECHOSOS:'Solo sospechosos', LIMPIOS:'Solo limpios' }
-};
 
 function setFiltroPill(filtroKey, valor, opts={}){
   const sel = document.getElementById(FILTRO_SELECT_ID[filtroKey]);
@@ -1324,50 +1237,6 @@ function setFiltroPill(filtroKey, valor, opts={}){
     p.classList.toggle('active', p.dataset.valor === valor);
   });
   if(!opts.silent) sel.dispatchEvent(new Event('change'));
-  renderFiltrosChipsYBadge();
-  updateFiltrosLiveCount();
-}
-
-function renderFiltrosChipsYBadge(){
-  const activos = [];
-  const turno = document.getElementById('turnoFilter').value;
-  const personal = document.getElementById('personalFilter').value;
-  const tipo = document.getElementById('tipoRecepcionFilter').value;
-  if(turno !== 'TODOS') activos.push({ key:'turno', label:'Turno: ' + (FILTRO_LABELS.turno[turno]||turno) });
-  if(personal !== 'TODOS') activos.push({ key:'personal', label:'Personal: ' + (FILTRO_LABELS.personal[personal]||personal) });
-  if(currentProceso === 'recepcion' && tipo !== 'TODOS') activos.push({ key:'tipo', label:'Tipo: ' + (FILTRO_LABELS.tipo[tipo]||tipo) });
-  const anomalia = document.getElementById('anomaliaFilter').value;
-  if(anomalia !== 'TODOS') activos.push({ key:'anomalia', label:FILTRO_LABELS.anomalia[anomalia]||anomalia });
-  const minimoVal = Number(document.getElementById('minimoInput').value) || 0;
-  if(minimoVal > 0) activos.push({ key:'minimo', label:`Mín. ${minimoVal} pedidos` });
-
-  const chipsWrap = document.getElementById('filtrosChips');
-  chipsWrap.innerHTML = activos.map(f=>
-    `<div class="filtro-chip">${f.label}<span class="x" data-key="${f.key}">✕</span></div>`
-  ).join('');
-  chipsWrap.querySelectorAll('.x').forEach(x=>{
-    x.addEventListener('click', ()=>{
-      if(x.dataset.key === 'minimo'){
-        document.getElementById('minimoInput').value = 0;
-        renderFiltrosChipsYBadge(); updateFiltrosLiveCount();
-        renderPersonasTable(); renderKPIs();
-      } else {
-        setFiltroPill(x.dataset.key, 'TODOS');
-      }
-    });
-  });
-
-  const badge = document.getElementById('filtrosCountBadge');
-  const btn = document.getElementById('filtrosBtn');
-  badge.style.display = activos.length > 0 ? 'inline-flex' : 'none';
-  badge.textContent = activos.length;
-  btn.classList.toggle('has-active', activos.length > 0);
-  document.getElementById('filtrosLimpiarBtn').disabled = activos.length === 0;
-}
-
-function updateFiltrosLiveCount(){
-  const n = getFilteredPersonas().length;
-  document.getElementById('filtrosLiveCount').textContent = `${n} responsable${n===1?'':'s'}`;
 }
 
 function renderKPIs(){
@@ -1487,7 +1356,7 @@ function renderPersonasTable(){
       const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
 
       if(modoFecha === 'DIA'){
-        const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3, p_tipo_extra });
+        const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0 });
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar sesiones</span>'; return; }
         let sTable = `<table><thead><tr><th>Sesión</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>${PROCESOS[currentProceso].dimLabel}</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Ped/h</th></tr></thead><tbody>`;
         (data||[]).forEach(s=>{
@@ -1500,7 +1369,7 @@ function renderPersonasTable(){
       } else {
         const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
         const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
-        const { data, error } = await supa.rpc('productividad_diaria_responsable', { p_proceso: currentProceso, p_responsable: p.responsable, p_umbral_min: 3, p_fecha_inicio, p_fecha_fin });
+        const { data, error } = await supa.rpc('productividad_diaria_responsable', { p_proceso: currentProceso, p_responsable: p.responsable, p_umbral_min: 3, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0 });
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar el detalle</span>'; return; }
         if(!data || data.length===0){ panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Sin días registrados en este período.</span>'; return; }
         panel.innerHTML = data.map(d=>
@@ -1592,10 +1461,10 @@ async function loadResumen(){
   document.getElementById('resumenTopsWrap').innerHTML = '<div class="empty-state">Cargando…</div>';
   try{
     const results = await Promise.all(Object.keys(PROCESOS).map(key =>
-      supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3 })
+      supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3, p_minimo: CONFIG.minimos[key]||0 })
     ));
     Object.keys(PROCESOS).forEach((key,i)=>{
-      cacheHistoricoPorProceso[key] = filtrarPorMinimo(key, results[i].data || []).map(r => ({...r, proceso: key}));
+      cacheHistoricoPorProceso[key] = (results[i].data || []).map(r => ({...r, proceso: key}));
     });
   } catch(err){ console.error(err); }
   renderResumen();
@@ -1636,7 +1505,7 @@ function wireTopExpand(container){
         loaded = true;
         panel.textContent = 'Cargando…';
         const { data, error } = await supa.rpc('productividad_diaria_responsable', {
-          p_proceso: tr.dataset.proceso, p_responsable: tr.dataset.responsable, p_umbral_min: 3
+          p_proceso: tr.dataset.proceso, p_responsable: tr.dataset.responsable, p_umbral_min: 3, p_minimo: CONFIG.minimos[tr.dataset.proceso]||0
         });
         if(error || !data || data.length===0){ panel.textContent = 'Sin días registrados.'; return; }
         panel.innerHTML = data.map(d=>{
@@ -1732,16 +1601,16 @@ async function loadResumenTipo(){
   wrap.textContent = 'Cargando…';
   try{
     const [recPickup, recTransfer, etiquetado, anclaje] = await Promise.all([
-      supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'PICKUP' }),
-      supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'TRANSFERENCIA BU' }),
-      supa.rpc('productividad_historica', { p_proceso:'etiquetado', p_umbral_min:3 }),
-      supa.rpc('productividad_historica', { p_proceso:'anclaje', p_umbral_min:3 }),
+      supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'PICKUP', p_minimo: CONFIG.minimos.recepcion||0 }),
+      supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'TRANSFERENCIA BU', p_minimo: CONFIG.minimos.recepcion||0 }),
+      supa.rpc('productividad_historica', { p_proceso:'etiquetado', p_umbral_min:3, p_minimo: CONFIG.minimos.etiquetado||0 }),
+      supa.rpc('productividad_historica', { p_proceso:'anclaje', p_umbral_min:3, p_minimo: CONFIG.minimos.anclaje||0 }),
     ]);
     cacheResumenTipo = [
-      { label:'Recepción · Pickup', rows: filtrarPorMinimo('recepcion', recPickup.data || []) },
-      { label:'Recepción · Transferencia BU', rows: filtrarPorMinimo('recepcion', recTransfer.data || []) },
-      { label:'Etiquetado', rows: filtrarPorMinimo('etiquetado', etiquetado.data || []) },
-      { label:'Anclaje', rows: filtrarPorMinimo('anclaje', anclaje.data || []) },
+      { label:'Recepción · Pickup', rows: recPickup.data || [] },
+      { label:'Recepción · Transferencia BU', rows: recTransfer.data || [] },
+      { label:'Etiquetado', rows: etiquetado.data || [] },
+      { label:'Anclaje', rows: anclaje.data || [] },
     ];
   } catch(err){ console.error(err); cacheResumenTipo = []; }
   renderResumenTipo();
@@ -1894,7 +1763,7 @@ async function calcularTiempo(){
 
   let historico = cacheHistoricoPorProceso[proceso];
   if(!historico || historico.length===0){
-    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: proceso, p_umbral_min: 3 });
+    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: proceso, p_umbral_min: 3, p_minimo: CONFIG.minimos[proceso]||0 });
     historico = error ? [] : (data||[]);
     cacheHistoricoPorProceso[proceso] = historico.map(r=>({...r, proceso}));
   }
