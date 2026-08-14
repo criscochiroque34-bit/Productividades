@@ -32,7 +32,43 @@
   .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.12em; color:var(--primary); text-transform:uppercase; }
   h1{ font-family:var(--font-display); font-weight:800; font-size:26px; letter-spacing:-0.01em; }
   .subtitle{ color:var(--text-secondary); font-size:13px; margin-top:4px; }
-  .controls{ display:flex; gap:10px; align-items:center; }
+  .controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  /* Selector de modo de fecha: Día / Rango / Todo el histórico */
+  .modo-fecha{ display:inline-flex; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:3px; flex-shrink:0; }
+  .modo-btn{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); padding:7px 13px; border-radius:6px; cursor:pointer; user-select:none; }
+  .modo-btn.active{ background:var(--primary-dim); color:#C9B8FF; }
+  .modo-btn:hover:not(.active){ color:var(--text-primary); }
+  .rango-nota{ font-size:11px; color:var(--text-muted); font-family:var(--font-mono); }
+  input[type=date]{
+    background:var(--surface-raised); color:var(--text-primary); border:1px solid var(--border-strong); border-radius:8px;
+    font-family:var(--font-mono); font-size:12px; padding:8px 10px; cursor:pointer;
+  }
+  input[type=date]:focus{ outline:none; border-color:var(--primary); }
+
+  .tab.tab-disabled{ opacity:0.4; cursor:default; }
+  .placeholder-modo{ padding:40px 20px; text-align:center; color:var(--text-muted); font-size:12.5px; }
+
+  /* Acordeón "Por Flota" */
+  .flota-list{ display:flex; flex-direction:column; gap:10px; }
+  .flota-card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .flota-card.sin-asignar{ border-style:dashed; border-color:var(--border-strong); opacity:0.85; }
+  .flota-card summary{ cursor:pointer; list-style:none; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+  .flota-card summary::-webkit-details-marker{ display:none; }
+  .flota-head-left{ display:flex; align-items:center; gap:12px; }
+  .flota-chevron{ font-size:11px; color:var(--text-muted); transition:transform 0.15s; flex-shrink:0; }
+  .flota-card[open] .flota-chevron{ transform:rotate(90deg); }
+  .flota-name{ font-family:var(--font-display); font-weight:700; font-size:15px; }
+  .flota-name small{ display:block; font-family:var(--font-mono); font-weight:400; font-size:10.5px; color:var(--text-muted); margin-top:2px; }
+  .flota-summary-nums{ display:flex; gap:22px; align-items:center; }
+  .flota-summary-item{ text-align:right; }
+  .flota-summary-item .num{ font-family:var(--font-mono); font-weight:600; font-size:14px; color:var(--text-primary); font-variant-numeric:tabular-nums; }
+  .flota-summary-item .lbl{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .flota-prom{ text-align:right; min-width:70px; }
+  .flota-prom .num{ font-family:var(--font-display); font-weight:800; font-size:19px; color:var(--positive); font-variant-numeric:tabular-nums; }
+  .flota-prom .lbl{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .flota-body{ padding:0 20px 18px; border-top:1px solid var(--border); }
+  .flota-body-inner{ padding-top:14px; }
   select, input[type=text], input[type=number]{
     background:var(--surface-raised); color:var(--text-primary); border:1px solid var(--border-strong); border-radius:8px;
     font-family:var(--font-mono); font-size:12px; padding:9px 12px; cursor:pointer;
@@ -135,17 +171,26 @@
       <h1 id="mainTitle">Productividad</h1>
       <div class="subtitle" id="subtitle">Conectando con Supabase…</div>
     </div>
-    <div class="controls">
+    <div class="controls" id="fechaControls">
+      <div class="modo-fecha" id="modoFechaToggle">
+        <div class="modo-btn active" data-modo="DIA">Día</div>
+        <div class="modo-btn" data-modo="RANGO">Rango</div>
+        <div class="modo-btn" data-modo="TODO">Todo</div>
+      </div>
       <select id="fechaSelector"><option>Cargando fechas…</option></select>
+      <input type="date" id="rangoInicioInput" style="display:none">
+      <span class="rango-nota" id="rangoHastaLabel" style="display:none">hasta</span>
+      <input type="date" id="rangoFinInput" style="display:none">
+      <span class="rango-nota" id="todoLabel" style="display:none"></span>
     </div>
   </header>
 
   <div class="proceso-selector" id="procesoSelector"></div>
 
   <div class="kpis">
-    <div class="kpi"><div class="kpi-label">Total pistoleos</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-sub">día seleccionado</div></div>
+    <div class="kpi"><div class="kpi-label">Total pistoleos</div><div class="kpi-value" id="kpiTotal">—</div><div class="kpi-sub" id="kpiTotalSub">día seleccionado</div></div>
     <div class="kpi"><div class="kpi-label" id="kpiDimLabel">Dimensión activa</div><div class="kpi-value" id="kpiPlacas">—</div><div class="kpi-sub">con al menos 1 pistoleo</div></div>
-    <div class="kpi"><div class="kpi-label">Productividad promedio</div><div class="kpi-value" id="kpiProm">—</div><div class="kpi-sub">del equipo, ese día</div></div>
+    <div class="kpi"><div class="kpi-label">Productividad promedio</div><div class="kpi-value" id="kpiProm">—</div><div class="kpi-sub" id="kpiPromSub">del equipo, ese día</div></div>
     <div class="kpi"><div class="kpi-label">Top productividad</div><div class="kpi-value accent" id="kpiTop">—</div><div class="kpi-sub" id="kpiTopName">—</div></div>
     <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value" id="kpiResp">—</div><div class="kpi-sub">con pistoleos ese día</div></div>
   </div>
@@ -153,6 +198,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="personas">Por responsable</button>
     <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
+    <button class="tab" data-tab="flota" id="tabFlotaBtn" style="display:none">Por Flota</button>
   </div>
 
   <div id="view-personas">
@@ -181,7 +227,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
+          <thead id="personasHead"><tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
           <tbody id="personasBody"><tr><td colspan="8" class="empty-state">Cargando…</td></tr></tbody>
         </table>
       </div>
@@ -189,23 +235,43 @@
   </div>
 
   <div id="view-dim" style="display:none">
-    <div class="card">
-      <div class="card-title" id="chartTitle">Pistoleos por hora</div>
-      <div class="card-sub" id="chartSub">Top dimensiones del día + resto agrupado en "Otros"</div>
-      <div class="controls" style="margin-bottom:14px" id="filterWrap"></div>
-      <div class="legend" id="legend"></div>
-      <svg id="chart" viewBox="0 0 1000 320"></svg>
+    <div id="dimPlaceholder" class="card" style="display:none">
+      <div class="placeholder-modo">Disponible solo en modo <strong>Día</strong> — cambia el selector de fecha arriba para verlo.</div>
     </div>
-    <div class="card">
-      <div class="card-title">Detalle por hora</div>
-      <div class="card-sub" id="detailSub">Desglose por dimensión</div>
-      <div class="table-wrap">
-        <table>
-          <thead id="detailHead"><tr><th>Hora</th><th>Dimensión</th><th style="text-align:right">Pistoleos</th></tr></thead>
-          <tbody id="tableBody"><tr><td colspan="3" class="empty-state">Cargando…</td></tr></tbody>
-        </table>
+    <div id="dimContent">
+      <div class="card">
+        <div class="card-title" id="chartTitle">Pistoleos por hora</div>
+        <div class="card-sub" id="chartSub">Top dimensiones del día + resto agrupado en "Otros"</div>
+        <div class="controls" style="margin-bottom:14px" id="filterWrap"></div>
+        <div class="legend" id="legend"></div>
+        <svg id="chart" viewBox="0 0 1000 320"></svg>
+      </div>
+      <div class="card">
+        <div class="card-title">Detalle por hora</div>
+        <div class="card-sub" id="detailSub">Desglose por dimensión</div>
+        <div class="table-wrap">
+          <table>
+            <thead id="detailHead"><tr><th>Hora</th><th>Dimensión</th><th style="text-align:right">Pistoleos</th></tr></thead>
+            <tbody id="tableBody"><tr><td colspan="3" class="empty-state">Cargando…</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
+  </div>
+
+  <div id="view-flota" style="display:none">
+    <div class="card">
+      <div class="card-title">Anclaje por Flota</div>
+      <div class="card-sub">La Flota se cruza con Recepción por código de seguimiento — vista independiente del modo Día/Rango/Todo de arriba, siempre por un día específico.</div>
+      <div class="controls" style="margin-bottom:0">
+        <select id="flotaFechaSelector"><option>Cargando fechas…</option></select>
+      </div>
+    </div>
+    <div class="card" id="flotaCaveat">
+      <div style="font-size:11.5px; color:var(--warn)">⚠ La productividad de cada Flota se calcula solo con los escaneos de esa Flota — si un responsable alternó entre flotas ese día, sus sesiones se cortan distinto que en "Por responsable", así que los números pueden diferir de su productividad general del día.</div>
+    </div>
+    <div class="kpis" id="flotaKpisWrap"></div>
+    <div class="flota-list" id="flotaListWrap"></div>
   </div>
 
   <div class="footnote" id="footnote"></div>
@@ -298,6 +364,14 @@
         <summary style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary)">📅 Ver días con data cargada</summary>
         <div id="diasCargadosWrap" style="margin-top:14px">Cargando…</div>
       </details>
+      <details style="margin-top:10px; border-top:1px solid var(--border); padding-top:14px">
+        <summary style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary)">🔧 Diagnóstico de fecha/hora</summary>
+        <div style="font-size:11.5px; color:var(--text-muted); margin:8px 0">
+          Muestra lo que está realmente guardado en la base, sin ningún formateo. Si aquí la hora no coincide con el Excel, el problema está en el guardado, no en la pantalla.
+        </div>
+        <button class="btn btn-ghost" id="diagBtn" style="padding:6px 12px; font-size:11px">Revisar últimos registros</button>
+        <div id="diagWrap" style="margin-top:12px"></div>
+      </details>
     </div>
 
     <div class="card">
@@ -365,7 +439,7 @@ const PROCESOS = {
     dimLabel: "Placa", dimLabelPlural: "Placas activas", chartTitle: "Pistoleos por hora · por placa",
     chartSub: 'Top dimensiones del día + resto agrupado en "Otros"', detailSub: "Desglose placa / tipo de recepción",
     hasTipoCol: true,
-    columnMap: { codigo:'Codigo Seguimiento', responsable:'Responsabe Registro', fecha_hora:'fechaRegistroAsignadoFlota', dimension:'Placa', tipo_extra:'Tipo Recepción' }
+    columnMap: { codigo:'Codigo Seguimiento', responsable:'Responsabe Registro', fecha_hora:'fechaRegistroAsignadoFlota', dimension:'Placa', tipo_extra:'Tipo Recepción', flota:'Flota' }
   },
   etiquetado: {
     label: "Etiquetado", eyebrow: "Impresión · Etiquetado",
@@ -374,7 +448,7 @@ const PROCESOS = {
     dimLabel: "Flujo", dimLabelPlural: "Flujos activos", chartTitle: "Pistoleos por hora · por flujo",
     chartSub: 'Top flujos del día + resto agrupado en "Otros"', detailSub: "Desglose por flujo",
     hasTipoCol: false,
-    columnMap: { codigo:'rastreo', responsable:'responsable', fecha_hora:'fechaRegistro', dimension:'flujo', tipo_extra:null }
+    columnMap: { codigo:'rastreo', responsable:'responsable', fecha_hora:'fechaRegistro', dimension:'flujo', tipo_extra:null, flota:null }
   },
   anclaje: {
     label: "Anclaje", eyebrow: "Anclaje · Sorting",
@@ -383,15 +457,21 @@ const PROCESOS = {
     dimLabel: "Tipo Anclaje", dimLabelPlural: "Tipos activos", chartTitle: "Pistoleos por hora · por tipo de anclaje",
     chartSub: 'Top tipos del día + resto agrupado en "Otros"', detailSub: "Desglose por tipo de anclaje",
     hasTipoCol: false,
-    columnMap: { codigo:'rastreo', responsable:'responsableFinal', fecha_hora:'fechaRegistroInicio', dimension:'tipoAnclaje', tipo_extra:null }
+    columnMap: { codigo:'rastreo', responsable:'responsableFinal', fecha_hora:'fechaRegistroInicio', dimension:'tipoAnclaje', tipo_extra:null, flota:null }
   }
 };
 
 let currentProceso = 'recepcion';
 let currentFecha = null;
+let modoFecha = 'DIA'; // 'DIA' | 'RANGO' | 'TODO'
+let rangoInicio = null;
+let rangoFin = null;
+let fechasDisponiblesCache = []; // [{fecha, total}], desc, para el proceso actual
 let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 } };
 let cachePersonas = [];
 let cacheHoraData = [];
+let currentFlotaFecha = null;
+let cacheFlota = [];
 
 const svgNS = "http://www.w3.org/2000/svg";
 function el(tag, attrs){ const n = document.createElementNS(svgNS, tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; }
@@ -469,16 +549,36 @@ async function init(){
   document.getElementById('personalFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
   document.getElementById('tipoRecepcionFilter').addEventListener('change', async ()=>{ await loadPersonas(); renderPersonasTable(); renderKPIs(); });
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
+  document.querySelectorAll('#modoFechaToggle .modo-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> switchModoFecha(btn.dataset.modo));
+  });
+  document.getElementById('rangoInicioInput').addEventListener('change', async (e)=>{
+    rangoInicio = e.target.value || null;
+    if(rangoInicio && rangoFin && rangoInicio > rangoFin) rangoFin = rangoInicio;
+    document.getElementById('rangoFinInput').value = rangoFin || '';
+    await loadProceso();
+  });
+  document.getElementById('rangoFinInput').addEventListener('change', async (e)=>{
+    rangoFin = e.target.value || null;
+    if(rangoInicio && rangoFin && rangoFin < rangoInicio) rangoInicio = rangoFin;
+    document.getElementById('rangoInicioInput').value = rangoInicio || '';
+    await loadProceso();
+  });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
   document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
+  document.getElementById('diagBtn').addEventListener('click', diagnosticoFechaHora);
   document.getElementById('turnoFiltroVista').addEventListener('change', renderTurnosTable);
+  document.getElementById('flotaFechaSelector').addEventListener('change', async (e)=>{ currentFlotaFecha = e.target.value; await loadFlota(); });
   document.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.tab === 'dim' && modoFecha !== 'DIA') return; // solo informativo mientras está deshabilitada
       document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const tab = btn.dataset.tab;
       document.getElementById('view-personas').style.display = tab==='personas' ? 'block' : 'none';
       document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
+      document.getElementById('view-flota').style.display = tab==='flota' ? 'block' : 'none';
+      if(tab==='flota'){ loadFlota(); }
     });
   });
   document.getElementById('calcBtn').addEventListener('click', calcularTiempo);
@@ -513,26 +613,74 @@ async function loadConfig(){
 async function loadFechas(){
   const sel = document.getElementById('fechaSelector');
   sel.innerHTML = '';
+  // Cada cambio de proceso vuelve a empezar en modo Día — evita arrastrar
+  // un rango que no tenga sentido para el nuevo proceso.
+  modoFecha = 'DIA';
   try{
     const { data, error } = await supa.rpc('fechas_disponibles', { p_proceso: currentProceso });
     if(error) throw error;
-    if(!data || data.length===0){
+    fechasDisponiblesCache = data || [];
+    if(fechasDisponiblesCache.length===0){
       sel.innerHTML = '<option value="">Sin datos cargados</option>';
       currentFecha = null;
+      rangoInicio = null; rangoFin = null;
+      renderModoFechaUI();
       return;
     }
-    data.forEach(row=>{
+    fechasDisponiblesCache.forEach(row=>{
       const opt = document.createElement('option');
       opt.value = row.fecha;
       opt.textContent = fmtFechaConAnio(row.fecha) + ` (${row.total})`;
       sel.appendChild(opt);
     });
-    currentFecha = data[0].fecha;
+    currentFecha = fechasDisponiblesCache[0].fecha;
     sel.value = currentFecha;
+    // Rango por defecto: los últimos días disponibles (hasta 7), para que
+    // al cambiar a modo Rango ya haya algo sensato cargado.
+    const ordenAsc = [...fechasDisponiblesCache].sort((a,b)=> a.fecha < b.fecha ? -1 : 1);
+    rangoFin = ordenAsc[ordenAsc.length-1].fecha;
+    rangoInicio = ordenAsc[Math.max(0, ordenAsc.length-7)].fecha;
+    renderModoFechaUI();
   } catch(err){
     console.error(err);
     sel.innerHTML = '<option value="">Error al cargar fechas</option>';
   }
+}
+
+// ============================================================
+// Selector de modo de fecha: Día / Rango / Todo el histórico
+// ============================================================
+function renderModoFechaUI(){
+  document.querySelectorAll('#modoFechaToggle .modo-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.modo === modoFecha);
+  });
+  document.getElementById('fechaSelector').style.display = modoFecha === 'DIA' ? 'inline-block' : 'none';
+  document.getElementById('rangoInicioInput').style.display = modoFecha === 'RANGO' ? 'inline-block' : 'none';
+  document.getElementById('rangoHastaLabel').style.display = modoFecha === 'RANGO' ? 'inline-block' : 'none';
+  document.getElementById('rangoFinInput').style.display = modoFecha === 'RANGO' ? 'inline-block' : 'none';
+  document.getElementById('todoLabel').style.display = modoFecha === 'TODO' ? 'inline-block' : 'none';
+
+  if(modoFecha === 'RANGO'){
+    document.getElementById('rangoInicioInput').value = rangoInicio || '';
+    document.getElementById('rangoFinInput').value = rangoFin || '';
+  }
+  if(modoFecha === 'TODO' && fechasDisponiblesCache.length>0){
+    const ordenAsc = [...fechasDisponiblesCache].sort((a,b)=> a.fecha < b.fecha ? -1 : 1);
+    const desde = ordenAsc[0].fecha, hasta = ordenAsc[ordenAsc.length-1].fecha;
+    document.getElementById('todoLabel').textContent = `${fmtFechaDM(desde)} – ${fmtFechaDM(hasta)} · ${fechasDisponiblesCache.length} día${fechasDisponiblesCache.length>1?'s':''} con data`;
+  }
+
+  // "Por dimensión / hora" solo tiene sentido para un único día.
+  document.getElementById('tabDimBtn').classList.toggle('tab-disabled', modoFecha !== 'DIA');
+  document.getElementById('dimPlaceholder').style.display = modoFecha !== 'DIA' ? 'block' : 'none';
+  document.getElementById('dimContent').style.display = modoFecha !== 'DIA' ? 'none' : 'block';
+}
+
+async function switchModoFecha(nuevo){
+  if(nuevo === modoFecha) return;
+  modoFecha = nuevo;
+  renderModoFechaUI();
+  await loadProceso();
 }
 
 // ============================================================
@@ -566,7 +714,7 @@ function renderProcesoSelector(){
 let currentView = 'dashboard';
 
 function hideAllViews(){
-  ['view-personas','view-dim','view-resumen','view-tendencia','view-estimador','view-config'].forEach(id=>{
+  ['view-personas','view-dim','view-flota','view-resumen','view-tendencia','view-estimador','view-config'].forEach(id=>{
     document.getElementById(id).style.display = 'none';
   });
 }
@@ -576,18 +724,18 @@ async function renderView(){
   hideAllViews();
   const kpisEl = document.querySelector('.kpis');
   const tabsEl = document.querySelector('.tabs');
-  const fechaSel = document.getElementById('fechaSelector');
+  const fechaControls = document.getElementById('fechaControls');
   const footnote = document.getElementById('footnote');
 
   if(currentView === 'dashboard'){
-    kpisEl.style.display = 'grid'; tabsEl.style.display = 'flex'; fechaSel.style.display = 'inline-block'; footnote.style.display = 'block';
+    kpisEl.style.display = 'grid'; tabsEl.style.display = 'flex'; fechaControls.style.display = 'flex'; footnote.style.display = 'block';
     document.getElementById('view-personas').style.display = 'block';
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelector('.tab[data-tab="personas"]').classList.add('active');
     return;
   }
 
-  kpisEl.style.display = 'none'; tabsEl.style.display = 'none'; fechaSel.style.display = 'none'; footnote.style.display = 'none';
+  kpisEl.style.display = 'none'; tabsEl.style.display = 'none'; fechaControls.style.display = 'none'; footnote.style.display = 'none';
   document.getElementById('eyebrow').textContent = { resumen:'Resumen general', tendencia:'Tendencia', estimador:'Estimador', config:'Configuración' }[currentView];
   document.getElementById('mainTitle').textContent = { resumen:'Resumen general', tendencia:'Tendencia de productividad', estimador:'¿Cuánto nos demoraríamos?', config:'Ajustes del dashboard' }[currentView];
   document.getElementById('subtitle').textContent = { resumen:'Los 3 procesos, un solo ranking', tendencia:'Cómo evoluciona el ritmo del equipo', estimador:'Planifica según el ritmo real', config:'Turnos, mínimos y carga de archivos' }[currentView];
@@ -636,6 +784,19 @@ async function loadProceso(){
     ? '<tr><th>Hora</th><th>Placa</th><th>Tipo</th><th style="text-align:right">Pistoleos</th></tr>'
     : `<tr><th>Hora</th><th>${proc.dimLabel}</th><th style="text-align:right">Pistoleos</th></tr>`;
 
+  const tabFlotaBtn = document.getElementById('tabFlotaBtn');
+  tabFlotaBtn.style.display = currentProceso === 'anclaje' ? 'inline-block' : 'none';
+  if(currentProceso === 'anclaje') loadFlotaFechas();
+  else {
+    // Si veníamos de la pestaña Flota y cambiamos a otro proceso (que no
+    // la tiene), volvemos a "Por responsable" para no dejar la vista huérfana.
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.tab[data-tab="personas"]').classList.add('active');
+    document.getElementById('view-personas').style.display = 'block';
+    document.getElementById('view-dim').style.display = 'none';
+    document.getElementById('view-flota').style.display = 'none';
+  }
+
   if(!currentFecha){
     document.getElementById('personasBody').innerHTML = '<tr><td colspan="8" class="empty-state">Sin datos cargados para este proceso todavía — ve a Configuración para subir un archivo.</td></tr>';
     document.getElementById('tableBody').innerHTML = '<tr><td colspan="3" class="empty-state">Sin datos</td></tr>';
@@ -644,9 +805,12 @@ async function loadProceso(){
     return;
   }
 
-  await Promise.all([loadPersonas(), loadHoraData()]);
+  renderModoFechaUI();
+  const tareas = [loadPersonas()];
+  if(modoFecha === 'DIA') tareas.push(loadHoraData()); else cacheHoraData = [];
+  await Promise.all(tareas);
   renderPersonasTable();
-  renderChartAndTable();
+  if(modoFecha === 'DIA') renderChartAndTable();
   renderKPIs();
 }
 
@@ -654,9 +818,26 @@ async function loadPersonas(){
   try{
     const tipoSel = currentProceso === 'recepcion' ? document.getElementById('tipoRecepcionFilter').value : 'TODOS';
     const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
-    const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra });
-    if(error) throw error;
-    cachePersonas = data || [];
+
+    if(modoFecha === 'DIA'){
+      const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra });
+      if(error) throw error;
+      // Nombres normalizados (productividad / total_pedidos) para que los
+      // filtros de turno/personal/mínimo funcionen igual en los 3 modos.
+      cachePersonas = (data||[]).map(r=>({
+        responsable: r.responsable, total_pedidos: r.total_pedidos, productividad: r.productividad,
+        n_sesiones: r.n_sesiones, duracion_activa_min: r.duracion_activa_min
+      }));
+    } else {
+      const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
+      const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
+      const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3, p_tipo_extra, p_fecha_inicio, p_fecha_fin });
+      if(error) throw error;
+      cachePersonas = (data||[]).map(r=>({
+        responsable: r.responsable, total_pedidos: r.total_pedidos, productividad: r.productividad_promedio,
+        dias_trabajados: r.dias_trabajados
+      }));
+    }
   } catch(err){ console.error(err); cachePersonas = []; }
 }
 
@@ -666,6 +847,119 @@ async function loadHoraData(){
     if(error) throw error;
     cacheHoraData = data || [];
   } catch(err){ console.error(err); cacheHoraData = []; }
+}
+
+// ============================================================
+// Anclaje por Flota — pestaña independiente, siempre un solo día
+// (reutiliza fechasDisponiblesCache: solo se llama cuando currentProceso
+// ya es 'anclaje', que es cuando loadFechas() la pobló).
+// ============================================================
+function loadFlotaFechas(){
+  const sel = document.getElementById('flotaFechaSelector');
+  sel.innerHTML = '';
+  if(fechasDisponiblesCache.length===0){
+    sel.innerHTML = '<option value="">Sin datos cargados</option>';
+    currentFlotaFecha = null;
+    return;
+  }
+  fechasDisponiblesCache.forEach(row=>{
+    const opt = document.createElement('option');
+    opt.value = row.fecha;
+    opt.textContent = fmtFechaConAnio(row.fecha) + ` (${row.total})`;
+    sel.appendChild(opt);
+  });
+  if(!currentFlotaFecha || !fechasDisponiblesCache.some(f=>f.fecha===currentFlotaFecha)){
+    currentFlotaFecha = fechasDisponiblesCache[0].fecha;
+  }
+  sel.value = currentFlotaFecha;
+}
+
+async function loadFlota(){
+  const listWrap = document.getElementById('flotaListWrap');
+  if(!currentFlotaFecha){
+    document.getElementById('flotaKpisWrap').innerHTML = '';
+    listWrap.innerHTML = '<div class="card"><div class="empty-state">Sin datos cargados para Anclaje todavía.</div></div>';
+    return;
+  }
+  listWrap.innerHTML = '<div class="card"><div class="empty-state">Cargando…</div></div>';
+  try{
+    const { data, error } = await supa.rpc('anclaje_por_flota', { p_fecha: currentFlotaFecha, p_umbral_min: 3 });
+    if(error) throw error;
+    cacheFlota = data || [];
+  } catch(err){ console.error(err); cacheFlota = []; }
+  renderFlota();
+}
+
+function renderFlota(){
+  const kpisWrap = document.getElementById('flotaKpisWrap');
+  const listWrap = document.getElementById('flotaListWrap');
+
+  if(cacheFlota.length===0){
+    kpisWrap.innerHTML = '';
+    listWrap.innerHTML = '<div class="card"><div class="empty-state">Sin pistoleos de anclaje ese día.</div></div>';
+    return;
+  }
+
+  const grupos = {};
+  cacheFlota.forEach(r=>{
+    if(!grupos[r.flota]) grupos[r.flota] = [];
+    grupos[r.flota].push(r);
+  });
+
+  const totalPistoleos = cacheFlota.reduce((a,r)=>a+Number(r.total_pedidos),0);
+  const flotasKeys = Object.keys(grupos).filter(k=>k!=='SIN_ASIGNAR');
+  const sinAsignarRows = grupos['SIN_ASIGNAR'] || [];
+  const sinAsignarTotal = sinAsignarRows.reduce((a,r)=>a+Number(r.total_pedidos),0);
+
+  // Promedio simple entre responsables (misma convención que el resto
+  // de la app: sin ponderar por volumen).
+  let topFlota = null, topFlotaProm = -1;
+  flotasKeys.forEach(k=>{
+    const rows = grupos[k];
+    const prom = rows.reduce((a,r)=>a+Number(r.productividad),0)/rows.length;
+    if(prom > topFlotaProm){ topFlotaProm = prom; topFlota = k; }
+  });
+
+  kpisWrap.innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total pistoleos</div><div class="kpi-value">${totalPistoleos.toLocaleString('es-PE')}</div><div class="kpi-sub">anclaje · día seleccionado</div></div>
+    <div class="kpi"><div class="kpi-label">Flotas activas</div><div class="kpi-value">${flotasKeys.length}</div><div class="kpi-sub">con al menos 1 pistoleo</div></div>
+    <div class="kpi"><div class="kpi-label">Top Flota</div><div class="kpi-value accent">${topFlota ? topFlotaProm.toFixed(1)+'/h' : '—'}</div><div class="kpi-sub">${topFlota || '—'}</div></div>
+    <div class="kpi"><div class="kpi-label">Sin flota asignada</div><div class="kpi-value" style="color:${sinAsignarTotal>0 ? 'var(--warn)':'var(--text-primary)'}">${sinAsignarTotal}</div><div class="kpi-sub">${totalPistoleos>0 ? ((sinAsignarTotal/totalPistoleos)*100).toFixed(1)+'% del total' : '—'}</div></div>
+  `;
+
+  const ordenFlotas = flotasKeys.sort((a,b)=> a.localeCompare(b, 'es', {numeric:true}));
+
+  const bloqueHtml = (flotaNombre, rows, sinAsignar) => {
+    const prom = rows.reduce((a,r)=>a+Number(r.productividad),0)/rows.length;
+    const totalPed = rows.reduce((a,r)=>a+Number(r.total_pedidos),0);
+    const filas = rows.slice().sort((a,b)=>b.productividad-a.productividad).map(r=>
+      `<tr><td class="placa">${r.responsable}</td><td class="num">${r.total_pedidos}</td><td class="num">${r.n_sesiones}</td><td class="num" style="color:var(--positive)">${Number(r.productividad).toFixed(1)}/h</td></tr>`
+    ).join('');
+    const nombreMostrado = sinAsignar ? 'Sin flota asignada' : flotaNombre;
+    return `<details class="flota-card ${sinAsignar?'sin-asignar':''}">
+      <summary>
+        <div class="flota-head-left">
+          <span class="flota-chevron">&#9656;</span>
+          <div class="flota-name" style="${sinAsignar?'color:var(--text-secondary)':''}">${nombreMostrado}<small>${rows.length} responsable${rows.length>1?'s':''}</small></div>
+        </div>
+        <div class="flota-summary-nums">
+          <div class="flota-summary-item"><div class="num">${totalPed}</div><div class="lbl">pedidos</div></div>
+          <div class="flota-prom"><div class="num" style="${sinAsignar?'color:var(--text-secondary)':''}">${prom.toFixed(1)}/h</div><div class="lbl">promedio</div></div>
+        </div>
+      </summary>
+      <div class="flota-body"><div class="flota-body-inner">
+        ${sinAsignar ? '<div class="card-sub" style="margin-bottom:12px">Códigos de anclaje sin match en Recepción para este día — puede ser que ese archivo no cubra la fecha, o que el pedido entró por otro flujo.</div>' : ''}
+        <table>
+          <thead><tr><th>Responsable</th><th class="num">Pedidos</th><th class="num">Sesiones</th><th class="num">Productividad</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div></div>
+    </details>`;
+  };
+
+  let html = ordenFlotas.map(k => bloqueHtml(k, grupos[k], false)).join('');
+  if(sinAsignarRows.length > 0) html += bloqueHtml(null, sinAsignarRows, true);
+  listWrap.innerHTML = html;
 }
 
 // ============================================================
@@ -687,13 +981,28 @@ function getFilteredPersonas(){
 
 function renderKPIs(){
   const proc = PROCESOS[currentProceso];
-  document.getElementById('kpiDimLabel').textContent = proc.dimLabelPlural;
-  const totalPistoleos = cacheHoraData.reduce((a,r)=> a + Number(r.cantidad), 0);
-  document.getElementById('kpiTotal').textContent = totalPistoleos.toLocaleString('es-PE');
-  const dims = new Set(cacheHoraData.map(r=>r.dimension));
-  document.getElementById('kpiPlacas').textContent = dims.size;
-
   const rows = getFilteredPersonas();
+
+  let totalPistoleos, dimLabelTxt, dimValueTxt;
+  if(modoFecha === 'DIA'){
+    dimLabelTxt = proc.dimLabelPlural;
+    totalPistoleos = cacheHoraData.reduce((a,r)=> a + Number(r.cantidad), 0);
+    dimValueTxt = new Set(cacheHoraData.map(r=>r.dimension)).size;
+  } else {
+    // Sin "por hora" en rango/todo: el total sale de la data ya cargada
+    // (sin filtrar por turno/personal, igual que en modo Día), y la
+    // segunda tarjeta pasa a mostrar cuántos días entraron en el cálculo.
+    dimLabelTxt = 'Días con data';
+    totalPistoleos = cachePersonas.reduce((a,r)=> a + Number(r.total_pedidos), 0);
+    const desde = modoFecha === 'RANGO' ? rangoInicio : null;
+    const hasta = modoFecha === 'RANGO' ? rangoFin : null;
+    dimValueTxt = fechasDisponiblesCache.filter(f => (!desde || f.fecha >= desde) && (!hasta || f.fecha <= hasta)).length;
+  }
+  document.getElementById('kpiDimLabel').textContent = dimLabelTxt;
+  document.getElementById('kpiTotal').textContent = totalPistoleos.toLocaleString('es-PE');
+  document.getElementById('kpiPlacas').textContent = dimValueTxt;
+  document.getElementById('kpiTotalSub').textContent = modoFecha === 'DIA' ? 'día seleccionado' : (modoFecha === 'RANGO' ? 'rango seleccionado' : 'todo el histórico');
+
   if(rows.length===0){
     document.getElementById('kpiTop').textContent = '—';
     document.getElementById('kpiTopName').textContent = 'sin datos con este filtro';
@@ -707,11 +1016,19 @@ function renderKPIs(){
   document.getElementById('kpiTopName').textContent = top.responsable;
   document.getElementById('kpiResp').textContent = rows.length;
 
-  const fechaFmt = fmtFechaLarga(currentFecha);
   const promedioEquipo = rows.reduce((a,r)=>a+Number(r.productividad),0) / rows.length;
   document.getElementById('kpiProm').textContent = promedioEquipo.toFixed(1) + '/h';
-  document.getElementById('narrativaDia').textContent =
-    `El ${fechaFmt}, el equipo de ${PROCESOS[currentProceso].label.toLowerCase()} procesó ${totalPistoleos.toLocaleString('es-PE')} pedidos entre ${rows.length} responsables (promedio de ${promedioEquipo.toFixed(1)}/h). ${top.responsable} lideró el día con ${Number(top.productividad).toFixed(1)}/h. Clic en cualquier fila para ver el detalle de sesiones.`;
+  document.getElementById('kpiPromSub').textContent = modoFecha === 'DIA' ? 'del equipo, ese día' : 'del equipo, en el período';
+
+  if(modoFecha === 'DIA'){
+    const fechaFmt = fmtFechaLarga(currentFecha);
+    document.getElementById('narrativaDia').textContent =
+      `El ${fechaFmt}, el equipo de ${proc.label.toLowerCase()} procesó ${totalPistoleos.toLocaleString('es-PE')} pedidos entre ${rows.length} responsables (promedio de ${promedioEquipo.toFixed(1)}/h). ${top.responsable} lideró el día con ${Number(top.productividad).toFixed(1)}/h. Clic en cualquier fila para ver el detalle de sesiones.`;
+  } else {
+    const periodoTxt = modoFecha === 'TODO' ? 'todo el histórico cargado' : `el rango ${fmtFechaDM(rangoInicio)} – ${fmtFechaDM(rangoFin)}`;
+    document.getElementById('narrativaDia').textContent =
+      `En ${periodoTxt}, ${rows.length} responsables de ${proc.label.toLowerCase()} sumaron ${totalPistoleos.toLocaleString('es-PE')} pedidos (promedio de ${promedioEquipo.toFixed(1)}/h por día trabajado). ${top.responsable} lidera con ${Number(top.productividad).toFixed(1)}/h. Clic en cualquier fila para ver su productividad día por día.`;
+  }
 }
 
 // ============================================================
@@ -719,45 +1036,64 @@ function renderKPIs(){
 // ============================================================
 function renderPersonasTable(){
   document.getElementById('minimoBadge').textContent = 'mínimo: ' + (CONFIG.minimos[currentProceso]||0) + ' pedidos';
+  const head = document.getElementById('personasHead');
   const body = document.getElementById('personasBody');
   body.innerHTML = '';
+
+  head.innerHTML = modoFecha === 'DIA'
+    ? '<tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr>'
+    : '<tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Días trabajados</th><th style="text-align:right">Pedidos totales</th><th style="text-align:right">Productividad promedio</th></tr>';
+  const colSpan = modoFecha === 'DIA' ? 8 : 7;
+
   const rows = getFilteredPersonas().sort((a,b)=> b.productividad - a.productividad);
   if(rows.length===0){
-    body.innerHTML = '<tr><td colspan="8" class="empty-state">Nadie cumple el filtro actual (turno / personal / mínimo)</td></tr>';
+    body.innerHTML = `<tr><td colspan="${colSpan}" class="empty-state">Nadie cumple el filtro actual (turno / personal / mínimo)</td></tr>`;
     return;
   }
+
   rows.forEach(p=>{
     const tr = document.createElement('tr');
     tr.className = 'person-row';
-    const fragBadge = p.n_sesiones >= 6 ? `<span class="frag-badge">${p.n_sesiones} cortes</span>` : '';
     const turno = CONFIG.turnos[p.responsable];
     const turnoLabelMap = { DIA:'Día', NOCHE:'Noche' };
     const turnoLabel = turno ? (turnoLabelMap[turno]||turno) : '<span style="color:var(--text-muted)">—</span>';
     const personal = CONFIG.personal[p.responsable];
     const personalLabelMap = { PLANILLA:'Planilla', TERCERO:'Tercero' };
     const personalLabel = personal ? (personalLabelMap[personal]||personal) : '<span style="color:var(--text-muted)">—</span>';
-    tr.innerHTML = `<td style="width:20px"><span class="chevron">&#9656;</span></td>
-      <td class="placa">${p.responsable}${fragBadge}</td><td>${turnoLabel}</td><td>${personalLabel}</td>
-      <td class="num">${p.total_pedidos}</td><td class="num">${p.n_sesiones}</td>
-      <td class="num">${Number(p.duracion_activa_min).toFixed(1)} min</td>
-      <td class="num" style="color:var(--positive)">${Number(p.productividad).toFixed(1)}/h</td>`;
+
+    if(modoFecha === 'DIA'){
+      const fragBadge = p.n_sesiones >= 6 ? `<span class="frag-badge">${p.n_sesiones} cortes</span>` : '';
+      tr.innerHTML = `<td style="width:20px"><span class="chevron">&#9656;</span></td>
+        <td class="placa">${p.responsable}${fragBadge}</td><td>${turnoLabel}</td><td>${personalLabel}</td>
+        <td class="num">${p.total_pedidos}</td><td class="num">${p.n_sesiones}</td>
+        <td class="num">${Number(p.duracion_activa_min).toFixed(1)} min</td>
+        <td class="num" style="color:var(--positive)">${Number(p.productividad).toFixed(1)}/h</td>`;
+    } else {
+      tr.innerHTML = `<td style="width:20px"><span class="chevron">&#9656;</span></td>
+        <td class="placa">${p.responsable}</td><td>${turnoLabel}</td><td>${personalLabel}</td>
+        <td class="num">${p.dias_trabajados}</td><td class="num">${p.total_pedidos}</td>
+        <td class="num" style="color:var(--positive)">${Number(p.productividad).toFixed(1)}/h</td>`;
+    }
     body.appendChild(tr);
 
     const trDetail = document.createElement('tr');
     trDetail.className = 'session-detail';
-    const td = document.createElement('td'); td.colSpan = 8;
+    const td = document.createElement('td'); td.colSpan = colSpan;
     const panel = document.createElement('div'); panel.className = 'session-panel';
-    panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Cargando sesiones…</span>';
+    panel.innerHTML = `<span style="color:var(--text-muted); font-size:11.5px">Cargando ${modoFecha === 'DIA' ? 'sesiones' : 'detalle diario'}…</span>`;
     td.appendChild(panel); trDetail.appendChild(td); body.appendChild(trDetail);
 
     let loaded = false;
     tr.addEventListener('click', async ()=>{
       tr.querySelector('.chevron').classList.toggle('open');
       panel.classList.toggle('open');
-      if(!loaded && panel.classList.contains('open')){
-        loaded = true;
-        const tipoSel = currentProceso === 'recepcion' ? document.getElementById('tipoRecepcionFilter').value : 'TODOS';
-        const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
+      if(loaded || !panel.classList.contains('open')) return;
+      loaded = true;
+
+      const tipoSel = currentProceso === 'recepcion' ? document.getElementById('tipoRecepcionFilter').value : 'TODOS';
+      const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
+
+      if(modoFecha === 'DIA'){
         const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3, p_tipo_extra });
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar sesiones</span>'; return; }
         let sTable = `<table><thead><tr><th>Sesión</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>${PROCESOS[currentProceso].dimLabel}</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Ped/h</th></tr></thead><tbody>`;
@@ -768,6 +1104,17 @@ function renderPersonasTable(){
         });
         sTable += '</tbody></table>';
         panel.innerHTML = sTable;
+      } else {
+        const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
+        const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
+        const { data, error } = await supa.rpc('productividad_diaria_responsable', { p_proceso: currentProceso, p_responsable: p.responsable, p_umbral_min: 3, p_fecha_inicio, p_fecha_fin });
+        if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar el detalle</span>'; return; }
+        if(!data || data.length===0){ panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Sin días registrados en este período.</span>'; return; }
+        panel.innerHTML = data.map(d=>
+          `<div style="display:flex; justify-content:space-between; max-width:280px; padding:3px 0; font-family:var(--font-mono); font-size:11.5px">
+            <span style="color:var(--text-secondary)">${fmtFechaCorta(d.fecha)}</span>
+            <span>${Number(d.productividad_dia).toFixed(1)}/h · ${d.pedidos_dia} ped.</span>
+          </div>`).join('');
       }
     });
   });
@@ -1377,9 +1724,52 @@ function renderMinimosTable(){
   });
 }
 
+async function diagnosticoFechaHora(){
+  const wrap = document.getElementById('diagWrap');
+  wrap.textContent = 'Consultando…';
+  try{
+    const { data, error } = await supa
+      .from('pistoleos')
+      .select('proceso, codigo, responsable, fecha_hora')
+      .order('fecha_hora', { ascending:false })
+      .limit(5);
+    if(error) throw error;
+    if(!data || data.length===0){ wrap.innerHTML = '<div class="empty-state">No hay registros en la base.</div>'; return; }
+
+    // Si el valor trae zona horaria (+00:00 o Z), la columna todavía es
+    // timestamptz y el schema.sql nuevo no se ha aplicado.
+    const crudo = String(data[0].fecha_hora);
+    const tieneZona = /(\+\d{2}:?\d{2}|Z)$/.test(crudo);
+
+    const filas = data.map(r=>`
+      <div style="font-family:var(--font-mono); font-size:11px; padding:3px 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:10px">
+        <span style="color:var(--text-secondary)">${PROCESOS[r.proceso] ? PROCESOS[r.proceso].label : r.proceso}</span>
+        <span style="color:var(--text-primary)">${r.fecha_hora}</span>
+      </div>`).join('');
+
+    const aviso = tieneZona
+      ? `<div style="border-left:3px solid var(--warn); padding:8px 10px; margin-bottom:10px; background:var(--surface-2); border-radius:6px">
+           <div style="font-family:var(--font-mono); font-size:11.5px; color:var(--warn)">⚠ La columna todavía tiene zona horaria</div>
+           <div style="font-size:11px; color:var(--text-muted); margin-top:3px">
+             El valor termina en zona horaria, así que el <code>schema.sql</code> nuevo aún no se aplicó. Córrelo completo en el SQL Editor y vuelve a subir los archivos: mientras siga como <code>timestamptz</code>, la hora se puede desplazar al guardar.
+           </div>
+         </div>`
+      : `<div style="border-left:3px solid var(--positive); padding:8px 10px; margin-bottom:10px; background:var(--surface-2); border-radius:6px">
+           <div style="font-family:var(--font-mono); font-size:11.5px; color:var(--positive)">✓ Columna sin zona horaria</div>
+           <div style="font-size:11px; color:var(--text-muted); margin-top:3px">
+             Los valores de abajo son exactamente los guardados. Deben coincidir dígito por dígito con el Excel.
+           </div>
+         </div>`;
+
+    wrap.innerHTML = aviso + filas;
+  } catch(err){
+    console.error(err);
+    wrap.innerHTML = `<div style="color:var(--warn); font-size:11.5px">Error: ${err.message||err}</div>`;
+  }
+}
+
 async function loadDiasCargados(){
-  const wrap = document.getElementById('diasCargadosWrap');
-  wrap.textContent = 'Cargando…';
+  const wrap = document.getElementById('diasCargadosWrap');  wrap.textContent = 'Cargando…';
   try{
     const results = await Promise.all(Object.keys(PROCESOS).map(key => supa.rpc('fechas_disponibles', { p_proceso: key })));
     wrap.innerHTML = '';
@@ -1465,6 +1855,11 @@ async function stageFile(file, procesoKey){
     const json = XLSX.utils.sheet_to_json(sheet, { defval:null, raw:true });
     const map = PROCESOS[procesoKey].columnMap;
 
+    // Detecta si el encabezado de Flota existe en el archivo, para poder
+    // avisar si el nombre no coincide en vez de guardar todo en null.
+    const columnasArchivo = json.length > 0 ? Object.keys(json[0]) : [];
+    const flotaColumnaExiste = !map.flota || columnasArchivo.includes(map.flota);
+
     let rows = json.map(r=>{
       return {
         proceso: procesoKey,
@@ -1472,9 +1867,23 @@ async function stageFile(file, procesoKey){
         responsable: r[map.responsable],
         fecha_hora: excelFechaHoraATexto(r[map.fecha_hora]),
         dimension: r[map.dimension],
-        tipo_extra: map.tipo_extra ? r[map.tipo_extra] : null
+        tipo_extra: map.tipo_extra ? r[map.tipo_extra] : null,
+        flota: map.flota ? (r[map.flota] != null ? String(r[map.flota]).trim() : null) : null
       };
     }).filter(r => r.codigo && r.responsable && r.fecha_hora && r.dimension);
+
+    // Dedup DENTRO del archivo: la clave es código + fecha/hora exacta.
+    // Un mismo código con otra hora es un reescaneo real y sí se conserva.
+    const vistos = new Set();
+    const sinDup = [];
+    let duplicados = 0;
+    for(const r of rows){
+      const clave = r.codigo + '|' + r.fecha_hora;
+      if(vistos.has(clave)){ duplicados++; continue; }
+      vistos.add(clave);
+      sinDup.push(r);
+    }
+    rows = sinDup;
 
     if(rows.length === 0){
       statusEl.className = 'upload-status show error';
@@ -1489,14 +1898,20 @@ async function stageFile(file, procesoKey){
     // Vista previa de fecha/hora: muestra el rango detectado y las primeras
     // filas para poder contrastar contra el Excel ANTES de guardar.
     const ordenadas = rows.map(r=>r.fecha_hora).sort();
+    const dias = [...new Set(rows.map(r=>r.fecha_hora.slice(0,10)))].sort();
     const muestra = rows.slice(0,3).map(r=>
       `<div style="font-family:var(--font-mono); font-size:11px; color:var(--text-secondary); padding:1px 0">
         ${String(r.fecha_hora).replace('T',' ')} · ${r.responsable}
       </div>`).join('');
     statusEl.innerHTML = `✓ ${file.name} — ${rows.length} filas listas para subir (todavía no se guardó).
+      ${duplicados > 0 ? `<div style="font-size:11px; color:var(--warn); margin-top:4px">${duplicados} duplicado${duplicados>1?'s':''} exacto${duplicados>1?'s':''} descartado${duplicados>1?'s':''} del archivo.</div>` : ''}
+      ${!flotaColumnaExiste ? `<div style="font-size:11px; color:var(--warn); margin-top:4px">⚠ No se encontró la columna "${map.flota}" — revisa el nombre exacto en el Excel. La Flota quedará vacía para estas filas.</div>` : ''}
       <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">
         <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px">
           Rango detectado: ${String(ordenadas[0]).replace('T',' ')} → ${String(ordenadas[ordenadas.length-1]).replace('T',' ')}
+        </div>
+        <div style="font-size:11px; color:var(--warn); margin-bottom:4px">
+          Al guardar se reemplazará por completo ${dias.length === 1 ? 'el día' : `los ${dias.length} días`} ${dias.map(d=>fmtFechaCorta(d)).join(', ')} de ${PROCESOS[procesoKey].label}.
         </div>
         <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px">Primeras filas (compara con el Excel):</div>
         ${muestra}
@@ -1512,6 +1927,14 @@ async function stageFile(file, procesoKey){
   }
 }
 
+// Suma días a una fecha "YYYY-MM-DD" con aritmética UTC pura (sin zonas).
+function sumarDias(fechaStr, n){
+  const p = partesFecha(fechaStr);
+  if(!p) return null;
+  const d = new Date(Date.UTC(Number(p.a), p.mes-1, Number(p.d)) + n*86400000);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
+}
+
 async function guardarTodo(){
   const btn = document.getElementById('guardarCambiosBtn');
   const resumen = document.getElementById('guardarResumen');
@@ -1525,7 +1948,21 @@ async function guardarTodo(){
   for(const [procesoKey, rows] of procesosAGuardar){
     const statusEl = document.getElementById(`status-${procesoKey}`);
     try{
+      // REEMPLAZO por día: se borra lo que ya exista de ese proceso en los
+      // días que trae el archivo, y luego se inserta. Así una recarga del
+      // mismo Excel nunca acumula ni deja filas viejas mal calculadas.
+      const dias = [...new Set(rows.map(r=>r.fecha_hora.slice(0,10)))].sort();
       statusEl.className = 'upload-status show loading';
+      statusEl.textContent = `Reemplazando ${dias.length} día(s)…`;
+      for(const dia of dias){
+        const { error } = await supa.from('pistoleos')
+          .delete()
+          .eq('proceso', procesoKey)
+          .gte('fecha_hora', dia + 'T00:00:00')
+          .lt('fecha_hora', sumarDias(dia,1) + 'T00:00:00');
+        if(error) throw error;
+      }
+
       statusEl.textContent = `Subiendo ${rows.length} filas…`;
       const CHUNK = 500;
       for(let i=0; i<rows.length; i+=CHUNK){
@@ -1534,7 +1971,7 @@ async function guardarTodo(){
         if(error) throw error;
       }
       statusEl.className = 'upload-status show ok';
-      statusEl.textContent = `Guardado — ${rows.length} filas procesadas.`;
+      statusEl.textContent = `Guardado — ${rows.length} filas en ${dias.length} día(s), reemplazando lo anterior.`;
       resultados.push(`${PROCESOS[procesoKey].label}: ${rows.length} filas`);
       staged[procesoKey] = null;
       document.getElementById(`dz-${procesoKey}`).style.borderColor = '';
