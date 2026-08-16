@@ -48,13 +48,33 @@
 
   .tab.tab-disabled{ opacity:0.4; cursor:default; }
 
-  /* Filtros: grupos de pills, siempre visibles y separados */
-  .filtro-grupo{ display:flex; flex-direction:column; gap:8px; }
-  .filtro-grupo-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; }
-  .filtro-pills{ display:flex; flex-wrap:wrap; gap:6px; }
-  .filtro-pill{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-secondary); background:var(--surface); border:1px solid var(--border); padding:6px 11px; border-radius:7px; cursor:pointer; user-select:none; transition:all 0.1s; }
-  .filtro-pill:hover{ color:var(--text-primary); border-color:var(--border-strong); }
-  .filtro-pill.active{ background:var(--primary-dim); color:#C9B8FF; border-color:var(--primary); }
+  /* Filtros: un botón desplegable independiente por filtro */
+  .fbtn-wrap{ position:relative; }
+  .fbtn{
+    display:inline-flex; align-items:center; gap:7px;
+    background:var(--surface); border:1px solid var(--border-strong); color:var(--text-secondary);
+    font-family:var(--font-mono); font-size:12px; padding:9px 13px; border-radius:8px; cursor:pointer;
+  }
+  .fbtn:hover{ border-color:var(--primary); color:var(--text-primary); }
+  .fbtn.on{ background:var(--primary-dim); border-color:var(--primary); color:#C9B8FF; }
+  .fbtn .car{ font-size:9px; opacity:0.7; margin-left:2px; }
+  .fbtn .lbl{ color:var(--text-muted); }
+  .fbtn.on .lbl{ color:#C9B8FF; opacity:0.75; }
+
+  .fpanel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:30; min-width:200px;
+    background:var(--surface-raised); border:1px solid var(--border-strong); border-radius:10px;
+    padding:6px; box-shadow:0 10px 28px rgba(0,0,0,0.45);
+    animation:fpanelIn 0.1s ease-out;
+  }
+  @keyframes fpanelIn{ from{ opacity:0; transform:translateY(-3px); } to{ opacity:1; transform:translateY(0); } }
+  .fopt{ font-family:var(--font-mono); font-size:12px; color:var(--text-secondary); padding:9px 11px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; white-space:nowrap; }
+  .fopt:hover{ background:var(--surface); color:var(--text-primary); }
+  .fopt.sel{ color:#C9B8FF; }
+  .fopt .check{ color:var(--primary); font-size:12px; opacity:0; margin-left:14px; }
+  .fopt.sel .check{ opacity:1; }
+  .limpiar-link{ font-family:var(--font-mono); font-size:11px; color:var(--primary); cursor:pointer; }
+  .limpiar-link:hover{ text-decoration:underline; }
   .placeholder-modo{ padding:40px 20px; text-align:center; color:var(--text-muted); font-size:12.5px; }
 
   /* Acordeón "Por Flota" */
@@ -221,42 +241,51 @@
     <div class="card">
       <div class="card-title">Productividad por responsable</div>
       <div class="card-sub" id="narrativaDia">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
-      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; align-items:flex-start; gap:18px">
-        <div class="filtro-grupo">
-          <div class="filtro-grupo-label">Turno</div>
-          <div class="filtro-pills" data-filtro="turno">
-            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-            <div class="filtro-pill" data-valor="DIA">Día</div>
-            <div class="filtro-pill" data-valor="NOCHE">Noche</div>
-            <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
+      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; align-items:center; gap:10px">
+        <div class="fbtn-wrap" data-filtro="turno">
+          <button type="button" class="fbtn" data-toggle>
+            <span class="lbl">Turno:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+          </button>
+          <div class="fpanel" style="display:none">
+            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+            <div class="fopt" data-valor="DIA">Día <span class="check">✓</span></div>
+            <div class="fopt" data-valor="NOCHE">Noche <span class="check">✓</span></div>
+            <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
           </div>
         </div>
-        <div class="filtro-grupo">
-          <div class="filtro-grupo-label">Personal</div>
-          <div class="filtro-pills" data-filtro="personal">
-            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-            <div class="filtro-pill" data-valor="PLANILLA">Planilla</div>
-            <div class="filtro-pill" data-valor="TERCERO">Tercero</div>
-            <div class="filtro-pill" data-valor="SIN_ASIGNAR">Sin asignar</div>
+        <div class="fbtn-wrap" data-filtro="personal">
+          <button type="button" class="fbtn" data-toggle>
+            <span class="lbl">Personal:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+          </button>
+          <div class="fpanel" style="display:none">
+            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+            <div class="fopt" data-valor="PLANILLA">Planilla <span class="check">✓</span></div>
+            <div class="fopt" data-valor="TERCERO">Tercero <span class="check">✓</span></div>
+            <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
           </div>
         </div>
-        <div class="filtro-grupo" id="filtroTipoSeccion" style="display:none">
-          <div class="filtro-grupo-label">Tipo de recepción</div>
-          <div class="filtro-pills" data-filtro="tipo">
-            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-            <div class="filtro-pill" data-valor="PICKUP">Pickup</div>
-            <div class="filtro-pill" data-valor="TRANSFERENCIA BU">Transferencia BU</div>
+        <div class="fbtn-wrap" data-filtro="tipo" id="filtroTipoSeccion" style="display:none">
+          <button type="button" class="fbtn" data-toggle>
+            <span class="lbl">Tipo:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+          </button>
+          <div class="fpanel" style="display:none">
+            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+            <div class="fopt" data-valor="PICKUP">Pickup <span class="check">✓</span></div>
+            <div class="fopt" data-valor="TRANSFERENCIA BU">Transferencia BU <span class="check">✓</span></div>
           </div>
         </div>
-        <div class="filtro-grupo">
-          <div class="filtro-grupo-label">Revisión</div>
-          <div class="filtro-pills" data-filtro="anomalia">
-            <div class="filtro-pill active" data-valor="TODOS">Todos</div>
-            <div class="filtro-pill" data-valor="SOSPECHOSOS">Solo sospechosos</div>
-            <div class="filtro-pill" data-valor="LIMPIOS">Solo limpios</div>
+        <div class="fbtn-wrap" data-filtro="anomalia">
+          <button type="button" class="fbtn" data-toggle>
+            <span class="lbl">Revisión:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+          </button>
+          <div class="fpanel" style="display:none">
+            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+            <div class="fopt" data-valor="SOSPECHOSOS">Solo sospechosos <span class="check">✓</span></div>
+            <div class="fopt" data-valor="LIMPIOS">Solo limpios <span class="check">✓</span></div>
           </div>
         </div>
-        <span class="card-sub" id="minimoBadge" style="margin:22px 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)" title="Se ajusta en Configuración → Umbrales">mínimo: 0 pedidos</span>
+        <span class="limpiar-link" id="filtrosLimpiarLink" style="display:none">Limpiar</span>
+        <span class="card-sub" id="minimoBadge" style="margin:0 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)" title="Se ajusta en Configuración → Umbrales">mínimo: 0 pedidos</span>
         <select id="turnoFilter" style="display:none">
           <option value="TODOS">Turno: Todos</option>
           <option value="DIA">Turno: Día</option>
@@ -678,12 +707,26 @@ async function init(){
     await loadProceso();
   });
   document.getElementById('turnoAddBtn').addEventListener('click', addTurno);
-  document.querySelectorAll('.filtro-pill').forEach(pill=>{
-    pill.addEventListener('click', ()=>{
-      const filtroKey = pill.closest('.filtro-pills').dataset.filtro;
-      setFiltroPill(filtroKey, pill.dataset.valor);
+  document.querySelectorAll('.fbtn[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const panel = btn.closest('.fbtn-wrap').querySelector('.fpanel');
+      const abrir = panel.style.display === 'none';
+      cerrarTodosLosFpanel();
+      panel.style.display = abrir ? 'block' : 'none';
     });
   });
+  document.querySelectorAll('.fpanel').forEach(panel=>{
+    panel.addEventListener('click', (e)=> e.stopPropagation());
+  });
+  document.addEventListener('click', cerrarTodosLosFpanel);
+  document.querySelectorAll('.fopt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      const filtroKey = opt.closest('.fbtn-wrap').dataset.filtro;
+      setFiltroPill(filtroKey, opt.dataset.valor);
+    });
+  });
+  document.getElementById('filtrosLimpiarLink').addEventListener('click', limpiarFiltros);
   document.getElementById('anomaliaFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
   document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
   document.getElementById('diagBtn').addEventListener('click', diagnosticoFechaHora);
@@ -936,6 +979,7 @@ async function loadProceso(){
   }
   document.getElementById('filtroTipoSeccion').style.display = currentProceso === 'recepcion' ? 'block' : 'none';
   if(currentProceso !== 'recepcion') setFiltroPill('tipo', 'TODOS', { silent:true });
+  actualizarLimpiarLink();
   document.getElementById('minimoBadge').textContent = 'mínimo: ' + (CONFIG.minimos[currentProceso]||0) + ' pedidos';
   const detailHead = document.getElementById('detailHead');
   detailHead.innerHTML = proc.hasTipoCol
@@ -1230,14 +1274,42 @@ async function loadAnomalias(){
 // sigue funcionando igual.
 // ============================================================
 const FILTRO_SELECT_ID = { turno:'turnoFilter', personal:'personalFilter', tipo:'tipoRecepcionFilter', anomalia:'anomaliaFilter' };
+const FILTRO_LABELS = {
+  turno: { TODOS:'Todos', DIA:'Día', NOCHE:'Noche', SIN_ASIGNAR:'Sin asignar' },
+  personal: { TODOS:'Todos', PLANILLA:'Planilla', TERCERO:'Tercero', SIN_ASIGNAR:'Sin asignar' },
+  tipo: { TODOS:'Todos', PICKUP:'Pickup', 'TRANSFERENCIA BU':'Transferencia BU' },
+  anomalia: { TODOS:'Todos', SOSPECHOSOS:'Solo sospechosos', LIMPIOS:'Solo limpios' }
+};
 
 function setFiltroPill(filtroKey, valor, opts={}){
   const sel = document.getElementById(FILTRO_SELECT_ID[filtroKey]);
   sel.value = valor;
-  document.querySelectorAll(`.filtro-pills[data-filtro="${filtroKey}"] .filtro-pill`).forEach(p=>{
-    p.classList.toggle('active', p.dataset.valor === valor);
-  });
+  const wrap = document.querySelector(`.fbtn-wrap[data-filtro="${filtroKey}"]`);
+  if(wrap){
+    wrap.querySelector('.fbtn-val').textContent = FILTRO_LABELS[filtroKey][valor] || valor;
+    wrap.querySelector('.fbtn').classList.toggle('on', valor !== 'TODOS');
+    wrap.querySelectorAll('.fopt').forEach(o=> o.classList.toggle('sel', o.dataset.valor === valor));
+    wrap.querySelector('.fpanel').style.display = 'none';
+  }
   if(!opts.silent) sel.dispatchEvent(new Event('change'));
+  actualizarLimpiarLink();
+}
+
+function actualizarLimpiarLink(){
+  const claves = currentProceso === 'recepcion' ? ['turno','personal','tipo','anomalia'] : ['turno','personal','anomalia'];
+  const hayActivos = claves.some(k => document.getElementById(FILTRO_SELECT_ID[k]).value !== 'TODOS');
+  document.getElementById('filtrosLimpiarLink').style.display = hayActivos ? 'inline' : 'none';
+}
+
+function limpiarFiltros(){
+  setFiltroPill('turno', 'TODOS');
+  setFiltroPill('personal', 'TODOS');
+  setFiltroPill('anomalia', 'TODOS');
+  if(currentProceso === 'recepcion') setFiltroPill('tipo', 'TODOS');
+}
+
+function cerrarTodosLosFpanel(){
+  document.querySelectorAll('.fpanel').forEach(p=> p.style.display = 'none');
 }
 
 function renderKPIs(){
