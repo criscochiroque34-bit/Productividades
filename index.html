@@ -487,7 +487,16 @@
       <div class="card">
         <div class="card-title">🚩 Flotas</div>
         <div class="card-sub">Elige qué Flotas se muestran en "Por Flota" (Anclaje) — las que destildes se ocultan de esa vista, pero el dato sigue intacto en la base.</div>
-        <div id="flotasChecklistWrap">Cargando…</div>
+        <div class="controls" style="margin-bottom:10px; flex-wrap:wrap; gap:8px">
+          <span class="card-sub" id="flotasContador" style="margin:0; font-family:var(--font-mono)">—</span>
+          <button class="btn btn-ghost" id="flotasMostrarTodasBtn" style="padding:6px 12px; font-size:11px; margin-left:auto">Mostrar todas</button>
+        </div>
+        <div class="table-wrap" style="max-height:320px; overflow-y:auto">
+          <table>
+            <thead><tr><th>Flota</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Visible en Anclaje</th></tr></thead>
+            <tbody id="flotasChecklistWrap"><tr><td colspan="3" class="empty-state">Cargando…</td></tr></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="card">
@@ -528,6 +537,16 @@
       <div class="card">
         <div class="card-title">🔎 Detección de cuentas compartidas</div>
         <div class="card-sub">Marca a un responsable cuando sus pistoleos son demasiado rápidos o seguidos para ser una sola persona — pensado para cuando dos personas usan el mismo usuario.</div>
+
+        <details style="margin-bottom:16px; border:1px solid var(--border); border-radius:8px; padding:10px 14px">
+          <summary style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary)">💡 ¿Qué significa cada número? (con ejemplo)</summary>
+          <div style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:10px">
+            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Gap imposible</strong> — si dos pistoleos seguidos de la misma persona quedan a menos de estos segundos, ese salto solo se cuenta como sospechoso individualmente. Ej.: con <strong>2s</strong>, un pistoleo a las 10:00:00 y el siguiente a las 10:00:01 cuenta; a las 10:00:03 no.</p>
+            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Ventana de salto</strong> — igual que arriba, pero exige además que el pistoleo haya sido de OTRA placa/flujo/tipo distinto al anterior. Es la señal más fuerte: implica estar en dos lugares casi al mismo tiempo. Ej.: con <strong>15s</strong>, escanear la placa AKA824 y 8 segundos después la CFD740 cuenta como salto; si pasan 20 segundos, no.</p>
+            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Mín. saltos de dimensión</strong> — cuántos de esos saltos necesita acumular un responsable en el día para quedar marcado. Ej.: con <strong>3</strong>, alguien con 2 saltos no se marca; con 3 o más, sí.</p>
+            <p><strong style="color:var(--text-primary)">% de gaps imposibles</strong> — alternativa al punto anterior: si un porcentaje alto de TODOS sus pistoleos del día son "imposibles" (aunque no hayan cambiado de dimensión), también se marca. Ej.: con <strong>15%</strong>, una persona con 200 pistoleos y 35 de ellos a menos del gap imposible (17.5%) queda marcada.</p>
+          </div>
+        </details>
 
         <div class="controls" style="flex-wrap:wrap; gap:16px; margin-bottom:16px">
           <label class="umbral-label">Gap imposible
@@ -699,9 +718,9 @@ async function init(){
   renderDropzones();
   await loadConfig();
   await loadFechas();
-  document.getElementById('turnoFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
-  document.getElementById('personalFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
-  document.getElementById('tipoRecepcionFilter').addEventListener('change', async ()=>{ await loadPersonas(); renderPersonasTable(); renderKPIs(); });
+  document.getElementById('turnoFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); if(currentProceso==='recepcion') renderPlaca(); });
+  document.getElementById('personalFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); if(currentProceso==='recepcion') renderPlaca(); });
+  document.getElementById('tipoRecepcionFilter').addEventListener('change', async ()=>{ await loadPersonas(); renderPersonasTable(); renderKPIs(); if(currentProceso==='recepcion') await loadPlaca(); });
   document.getElementById('fechaSelector').addEventListener('change', async (e)=>{ currentFecha = e.target.value; await loadProceso(); });
   document.querySelectorAll('#modoFechaToggle .modo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> switchModoFecha(btn.dataset.modo));
@@ -739,7 +758,7 @@ async function init(){
     });
   });
   document.getElementById('filtrosLimpiarLink').addEventListener('click', limpiarFiltros);
-  document.getElementById('anomaliaFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); });
+  document.getElementById('anomaliaFilter').addEventListener('change', ()=>{ renderPersonasTable(); renderKPIs(); if(currentProceso==='recepcion') renderPlaca(); });
   document.getElementById('turnoBuscar').addEventListener('input', renderTurnosTable);
   document.getElementById('diagBtn').addEventListener('click', diagnosticoFechaHora);
   document.querySelectorAll('.subtab').forEach(btn=>{
@@ -754,6 +773,7 @@ async function init(){
   });
   document.getElementById('anomGuardarBtn').addEventListener('click', guardarUmbrales);
   document.getElementById('anomProbarBtn').addEventListener('click', probarUmbrales);
+  document.getElementById('flotasMostrarTodasBtn').addEventListener('click', mostrarTodasLasFlotas);
   document.getElementById('anomPrevProceso').addEventListener('change', (e)=> cargarFechasParaPrueba(e.target.value));
   document.getElementById('turnoFiltroVista').addEventListener('change', renderTurnosTable);
   document.getElementById('flotaFechaSelector').addEventListener('change', async (e)=>{ currentFlotaFecha = e.target.value; await loadFlota(); });
@@ -1269,19 +1289,26 @@ function renderPlaca(){
   const kpisWrap = document.getElementById('placaKpisWrap');
   const listWrap = document.getElementById('placaListWrap');
 
+  const filasFiltradas = filtrarPorResponsable(cachePlaca);
+
   if(cachePlaca.length===0){
     kpisWrap.innerHTML = '';
     listWrap.innerHTML = '<div class="card"><div class="empty-state">Sin pistoleos de recepción en este período.</div></div>';
     return;
   }
+  if(filasFiltradas.length===0){
+    kpisWrap.innerHTML = '';
+    listWrap.innerHTML = '<div class="card"><div class="empty-state">Nadie cumple el filtro actual (turno / personal / revisión).</div></div>';
+    return;
+  }
 
   const grupos = {};
-  cachePlaca.forEach(r=>{
+  filasFiltradas.forEach(r=>{
     if(!grupos[r.dimension]) grupos[r.dimension] = [];
     grupos[r.dimension].push(r);
   });
 
-  const totalPistoleos = cachePlaca.reduce((a,r)=>a+Number(r.total_pedidos),0);
+  const totalPistoleos = filasFiltradas.reduce((a,r)=>a+Number(r.total_pedidos),0);
   const placas = Object.keys(grupos);
 
   let topPlaca = null, topPlacaProm = -1;
@@ -1290,7 +1317,7 @@ function renderPlaca(){
     const prom = rows.reduce((a,r)=>a+Number(r.productividad),0)/rows.length;
     if(prom > topPlacaProm){ topPlacaProm = prom; topPlaca = k; }
   });
-  const responsablesUnicos = new Set(cachePlaca.map(r=>r.responsable)).size;
+  const responsablesUnicos = new Set(filasFiltradas.map(r=>r.responsable)).size;
   const subEtiqueta = modoFecha === 'DIA' ? 'día seleccionado' : (modoFecha === 'RANGO' ? 'rango seleccionado' : 'todo el histórico');
 
   kpisWrap.innerHTML = `
@@ -1334,14 +1361,14 @@ function renderPlaca(){
 // ============================================================
 // KPIs
 // ============================================================
-function getFilteredPersonas(){
-  // El mínimo YA NO es un filtro visual: se aplica dentro del cálculo en
-  // SQL (excluye sesiones chicas antes de sumar), así que cachePersonas
-  // llega sin esas sesiones contadas. Aquí solo quedan turno/personal/anomalía.
+// Filtro de Turno / Personal / Revisión — reutilizable en cualquier lista
+// de filas que tenga un campo `responsable` (Por responsable, Por Placa).
+// El mínimo NO va acá: se aplica dentro del cálculo en SQL.
+function filtrarPorResponsable(rows){
   const turnoSel = document.getElementById('turnoFilter').value;
   const personalSel = document.getElementById('personalFilter').value;
   const anomaliaSel = document.getElementById('anomaliaFilter').value;
-  return cachePersonas.filter(p=>{
+  return rows.filter(p=>{
     const turno = CONFIG.turnos[p.responsable] || 'SIN_ASIGNAR';
     if(turnoSel !== 'TODOS' && turno !== turnoSel) return false;
     const personal = CONFIG.personal[p.responsable] || 'SIN_ASIGNAR';
@@ -1353,6 +1380,10 @@ function getFilteredPersonas(){
     }
     return true;
   });
+}
+
+function getFilteredPersonas(){
+  return filtrarPorResponsable(cachePersonas);
 }
 
 // ============================================================
@@ -2200,31 +2231,42 @@ function renderMinimosTable(){
 // ============================================================
 async function loadFlotasChecklist(){
   const wrap = document.getElementById('flotasChecklistWrap');
-  wrap.textContent = 'Cargando…';
+  wrap.innerHTML = '<tr><td colspan="3" class="empty-state">Cargando…</td></tr>';
   try{
     const { data, error } = await supa.rpc('flotas_conocidas');
     if(error) throw error;
     renderFlotasChecklist(data || []);
   } catch(err){
     console.error(err);
-    wrap.innerHTML = '<div class="empty-state">Error al cargar las flotas.</div>';
+    wrap.innerHTML = '<tr><td colspan="3" class="empty-state">Error al cargar las flotas.</td></tr>';
   }
 }
 
 function renderFlotasChecklist(flotas){
   const wrap = document.getElementById('flotasChecklistWrap');
+  const contador = document.getElementById('flotasContador');
   if(flotas.length === 0){
-    wrap.innerHTML = '<div class="empty-state">Todavía no hay Flotas cargadas — suben con el Excel de Recepción.</div>';
+    wrap.innerHTML = '<tr><td colspan="3" class="empty-state">Todavía no hay Flotas cargadas — suben con el Excel de Recepción.</td></tr>';
+    contador.textContent = '—';
+    document.getElementById('flotasMostrarTodasBtn').style.display = 'none';
     return;
   }
+  const ocultas = flotas.filter(f => CONFIG.flotasOcultas.includes(f.flota)).length;
+  contador.textContent = `${flotas.length} flota${flotas.length>1?'s':''} · ${ocultas} oculta${ocultas===1?'':'s'}`;
+  document.getElementById('flotasMostrarTodasBtn').style.display = ocultas > 0 ? 'inline-block' : 'none';
+
   wrap.innerHTML = flotas.map(f=>{
     const oculta = CONFIG.flotasOcultas.includes(f.flota);
     const idSafe = 'flota-chk-' + f.flota.replace(/[^a-zA-Z0-9]/g,'_');
-    return `<label for="${idSafe}" style="display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border); cursor:pointer">
-      <input type="checkbox" id="${idSafe}" data-flota="${f.flota.replace(/"/g,'&quot;')}" ${oculta?'':'checked'} style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer">
-      <span class="placa" style="flex:1">${f.flota}</span>
-      <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted)">${f.total_pedidos} pedidos</span>
-    </label>`;
+    return `<tr>
+      <td class="placa">${f.flota}</td>
+      <td class="num">${f.total_pedidos}</td>
+      <td style="text-align:right">
+        <label for="${idSafe}" style="cursor:pointer; display:inline-flex; align-items:center">
+          <input type="checkbox" id="${idSafe}" data-flota="${f.flota.replace(/"/g,'&quot;')}" ${oculta?'':'checked'} style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer">
+        </label>
+      </td>
+    </tr>`;
   }).join('');
 
   wrap.querySelectorAll('input[type=checkbox]').forEach(chk=>{
@@ -2239,13 +2281,25 @@ function renderFlotasChecklist(flotas){
           await supa.from('config_flotas_ocultas').upsert({ flota });
           if(!CONFIG.flotasOcultas.includes(flota)) CONFIG.flotasOcultas.push(flota);
         }
+        renderFlotasChecklist(flotas);
       } catch(err){
         console.error(err);
-        chk.checked = !chk.checked; // revierte si falló el guardado
+        chk.checked = !chk.checked;
+        chk.disabled = false;
       }
-      chk.disabled = false;
     });
   });
+}
+
+async function mostrarTodasLasFlotas(){
+  const btn = document.getElementById('flotasMostrarTodasBtn');
+  btn.disabled = true; btn.textContent = 'Mostrando…';
+  try{
+    await supa.from('config_flotas_ocultas').delete().not('flota', 'is', null);
+    CONFIG.flotasOcultas = [];
+    await loadFlotasChecklist();
+  } catch(err){ console.error(err); }
+  btn.disabled = false; btn.textContent = 'Mostrar todas';
 }
 
 function renderUmbralesInputs(){
