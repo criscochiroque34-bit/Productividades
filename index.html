@@ -231,6 +231,75 @@
     <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value" id="kpiResp">—</div><div class="kpi-sub">con pistoleos ese día</div></div>
   </div>
 
+  <div class="controls" id="filtrosCompartidos" style="margin-bottom:14px; flex-wrap:wrap; align-items:center; gap:10px">
+    <div class="fbtn-wrap" data-filtro="turno">
+      <button type="button" class="fbtn" data-toggle>
+        <span class="lbl">Turno:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+      </button>
+      <div class="fpanel" style="display:none">
+        <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+        <div class="fopt" data-valor="DIA">Día <span class="check">✓</span></div>
+        <div class="fopt" data-valor="NOCHE">Noche <span class="check">✓</span></div>
+        <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
+      </div>
+    </div>
+    <div class="fbtn-wrap" data-filtro="personal">
+      <button type="button" class="fbtn" data-toggle>
+        <span class="lbl">Personal:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+      </button>
+      <div class="fpanel" style="display:none">
+        <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+        <div class="fopt" data-valor="PLANILLA">Planilla <span class="check">✓</span></div>
+        <div class="fopt" data-valor="TERCERO">Tercero <span class="check">✓</span></div>
+        <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
+      </div>
+    </div>
+    <div class="fbtn-wrap" data-filtro="tipo" id="filtroTipoSeccion" style="display:none">
+      <button type="button" class="fbtn" data-toggle>
+        <span class="lbl">Tipo:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+      </button>
+      <div class="fpanel" style="display:none">
+        <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+        <div class="fopt" data-valor="PICKUP">Pickup <span class="check">✓</span></div>
+        <div class="fopt" data-valor="TRANSFERENCIA BU">Transferencia BU <span class="check">✓</span></div>
+      </div>
+    </div>
+    <div class="fbtn-wrap" data-filtro="anomalia">
+      <button type="button" class="fbtn" data-toggle>
+        <span class="lbl">Revisión:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
+      </button>
+      <div class="fpanel" style="display:none">
+        <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
+        <div class="fopt" data-valor="SOSPECHOSOS">Solo sospechosos <span class="check">✓</span></div>
+        <div class="fopt" data-valor="LIMPIOS">Solo limpios <span class="check">✓</span></div>
+      </div>
+    </div>
+    <span class="limpiar-link" id="filtrosLimpiarLink" style="display:none">Limpiar</span>
+    <span class="card-sub" id="minimoBadge" style="margin:0 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)" title="Se ajusta en Configuración → Umbrales">mínimo: 0 pedidos</span>
+    <select id="turnoFilter" style="display:none">
+      <option value="TODOS">Turno: Todos</option>
+      <option value="DIA">Turno: Día</option>
+      <option value="NOCHE">Turno: Noche</option>
+      <option value="SIN_ASIGNAR">Turno: Sin asignar</option>
+    </select>
+    <select id="personalFilter" style="display:none">
+      <option value="TODOS">Personal: Todos</option>
+      <option value="PLANILLA">Personal: Planilla</option>
+      <option value="TERCERO">Personal: Tercero</option>
+      <option value="SIN_ASIGNAR">Personal: Sin asignar</option>
+    </select>
+    <select id="tipoRecepcionFilter" style="display:none">
+      <option value="TODOS">Tipo: Todos</option>
+      <option value="PICKUP">Tipo: Pickup</option>
+      <option value="TRANSFERENCIA BU">Tipo: Transferencia BU</option>
+    </select>
+    <select id="anomaliaFilter" style="display:none">
+      <option value="TODOS">Todos</option>
+      <option value="SOSPECHOSOS">Solo sospechosos</option>
+      <option value="LIMPIOS">Solo limpios</option>
+    </select>
+  </div>
+
   <div class="tabs">
     <button class="tab active" data-tab="personas">Por responsable</button>
     <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
@@ -242,74 +311,6 @@
     <div class="card">
       <div class="card-title">Productividad por responsable</div>
       <div class="card-sub" id="narrativaDia">Pedidos totales del día ÷ tiempo activo (excluye huecos &gt;3 min entre pistoleos) · clic para ver sesiones</div>
-      <div class="controls" style="margin-bottom:14px; flex-wrap:wrap; align-items:center; gap:10px">
-        <div class="fbtn-wrap" data-filtro="turno">
-          <button type="button" class="fbtn" data-toggle>
-            <span class="lbl">Turno:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
-          </button>
-          <div class="fpanel" style="display:none">
-            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
-            <div class="fopt" data-valor="DIA">Día <span class="check">✓</span></div>
-            <div class="fopt" data-valor="NOCHE">Noche <span class="check">✓</span></div>
-            <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
-          </div>
-        </div>
-        <div class="fbtn-wrap" data-filtro="personal">
-          <button type="button" class="fbtn" data-toggle>
-            <span class="lbl">Personal:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
-          </button>
-          <div class="fpanel" style="display:none">
-            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
-            <div class="fopt" data-valor="PLANILLA">Planilla <span class="check">✓</span></div>
-            <div class="fopt" data-valor="TERCERO">Tercero <span class="check">✓</span></div>
-            <div class="fopt" data-valor="SIN_ASIGNAR">Sin asignar <span class="check">✓</span></div>
-          </div>
-        </div>
-        <div class="fbtn-wrap" data-filtro="tipo" id="filtroTipoSeccion" style="display:none">
-          <button type="button" class="fbtn" data-toggle>
-            <span class="lbl">Tipo:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
-          </button>
-          <div class="fpanel" style="display:none">
-            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
-            <div class="fopt" data-valor="PICKUP">Pickup <span class="check">✓</span></div>
-            <div class="fopt" data-valor="TRANSFERENCIA BU">Transferencia BU <span class="check">✓</span></div>
-          </div>
-        </div>
-        <div class="fbtn-wrap" data-filtro="anomalia">
-          <button type="button" class="fbtn" data-toggle>
-            <span class="lbl">Revisión:</span> <span class="fbtn-val">Todos</span> <span class="car">▾</span>
-          </button>
-          <div class="fpanel" style="display:none">
-            <div class="fopt sel" data-valor="TODOS">Todos <span class="check">✓</span></div>
-            <div class="fopt" data-valor="SOSPECHOSOS">Solo sospechosos <span class="check">✓</span></div>
-            <div class="fopt" data-valor="LIMPIOS">Solo limpios <span class="check">✓</span></div>
-          </div>
-        </div>
-        <span class="limpiar-link" id="filtrosLimpiarLink" style="display:none">Limpiar</span>
-        <span class="card-sub" id="minimoBadge" style="margin:0 0 0 auto; border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:var(--font-mono)" title="Se ajusta en Configuración → Umbrales">mínimo: 0 pedidos</span>
-        <select id="turnoFilter" style="display:none">
-          <option value="TODOS">Turno: Todos</option>
-          <option value="DIA">Turno: Día</option>
-          <option value="NOCHE">Turno: Noche</option>
-          <option value="SIN_ASIGNAR">Turno: Sin asignar</option>
-        </select>
-        <select id="personalFilter" style="display:none">
-          <option value="TODOS">Personal: Todos</option>
-          <option value="PLANILLA">Personal: Planilla</option>
-          <option value="TERCERO">Personal: Tercero</option>
-          <option value="SIN_ASIGNAR">Personal: Sin asignar</option>
-        </select>
-        <select id="tipoRecepcionFilter" style="display:none">
-          <option value="TODOS">Tipo: Todos</option>
-          <option value="PICKUP">Tipo: Pickup</option>
-          <option value="TRANSFERENCIA BU">Tipo: Transferencia BU</option>
-        </select>
-        <select id="anomaliaFilter" style="display:none">
-          <option value="TODOS">Todos</option>
-          <option value="SOSPECHOSOS">Solo sospechosos</option>
-          <option value="LIMPIOS">Solo limpios</option>
-        </select>
-      </div>
       <div class="table-wrap">
         <table>
           <thead id="personasHead"><tr><th></th><th>Responsable</th><th>Turno</th><th>Personal</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Sesiones</th><th style="text-align:right">Tiempo activo</th><th style="text-align:right">Productividad</th></tr></thead>
@@ -536,15 +537,13 @@
 
       <div class="card">
         <div class="card-title">🔎 Detección de cuentas compartidas</div>
-        <div class="card-sub">Marca a un responsable cuando sus pistoleos son demasiado rápidos o seguidos para ser una sola persona — pensado para cuando dos personas usan el mismo usuario.</div>
+        <div class="card-sub">Marca a un responsable cuando sus pistoleos son demasiado rápidos o seguidos para ser una sola persona — pensado para cuando dos personas usan el mismo usuario. Basta con que pase una vez en el día para quedar marcado.</div>
 
         <details style="margin-bottom:16px; border:1px solid var(--border); border-radius:8px; padding:10px 14px">
           <summary style="cursor:pointer; font-family:var(--font-mono); font-size:12px; color:var(--text-secondary)">💡 ¿Qué significa cada número? (con ejemplo)</summary>
           <div style="font-size:12px; color:var(--text-secondary); line-height:1.6; margin-top:10px">
-            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Gap imposible</strong> — si dos pistoleos seguidos de la misma persona quedan a menos de estos segundos, ese salto solo se cuenta como sospechoso individualmente. Ej.: con <strong>2s</strong>, un pistoleo a las 10:00:00 y el siguiente a las 10:00:01 cuenta; a las 10:00:03 no.</p>
-            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Ventana de salto</strong> — igual que arriba, pero exige además que el pistoleo haya sido de OTRA placa/flujo/tipo distinto al anterior. Es la señal más fuerte: implica estar en dos lugares casi al mismo tiempo. Ej.: con <strong>15s</strong>, escanear la placa AKA824 y 8 segundos después la CFD740 cuenta como salto; si pasan 20 segundos, no.</p>
-            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Mín. saltos de dimensión</strong> — cuántos de esos saltos necesita acumular un responsable en el día para quedar marcado. Ej.: con <strong>3</strong>, alguien con 2 saltos no se marca; con 3 o más, sí.</p>
-            <p><strong style="color:var(--text-primary)">% de gaps imposibles</strong> — alternativa al punto anterior: si un porcentaje alto de TODOS sus pistoleos del día son "imposibles" (aunque no hayan cambiado de dimensión), también se marca. Ej.: con <strong>15%</strong>, una persona con 200 pistoleos y 35 de ellos a menos del gap imposible (17.5%) queda marcada.</p>
+            <p style="margin-bottom:8px"><strong style="color:var(--text-primary)">Gap imposible</strong> — el tiempo mínimo real entre dos pistoleos de la misma persona, sin importar en qué placa/flujo/tipo. Si dos quedan más cerca que esto, ya se marca. Ej.: con <strong>2s</strong>, un pistoleo a las 10:00:00 y el siguiente a las 10:00:01 marca; a las 10:00:03 no.</p>
+            <p><strong style="color:var(--text-primary)">Ventana de salto</strong> — el tiempo mínimo que le toma a una persona pasar a trabajar OTRA placa/flujo/tipo distinto. Es la señal más fuerte: cambiar de lugar tan rápido implica estar en dos sitios casi al mismo tiempo. Ej.: con <strong>15s</strong>, escanear la placa AKA824 y 8 segundos después la CFD740 marca; si pasan 20 segundos, no.</p>
           </div>
         </details>
 
@@ -556,13 +555,6 @@
           <label class="umbral-label">Ventana de salto
             <input type="number" id="anomSegSalto" min="0" style="width:64px">
             <span class="umbral-unidad">seg</span>
-          </label>
-          <label class="umbral-label">Mín. saltos de dimensión
-            <input type="number" id="anomMinSaltos" min="0" style="width:64px">
-          </label>
-          <label class="umbral-label">% de gaps imposibles
-            <input type="number" id="anomPctImposible" min="0" max="100" style="width:64px">
-            <span class="umbral-unidad">%</span>
           </label>
         </div>
         <div class="controls" style="margin-bottom:6px">
@@ -640,7 +632,13 @@ let modoFecha = 'DIA'; // 'DIA' | 'RANGO' | 'TODO'
 let rangoInicio = null;
 let rangoFin = null;
 let fechasDisponiblesCache = []; // [{fecha, total}], desc, para el proceso actual
-let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 }, anomalias: { seg_imposible:2, seg_salto:15, min_saltos:3, pct_imposible:15 }, flotasOcultas: [] };
+let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 }, anomalias: { seg_imposible:2, seg_salto:15 }, flotasOcultas: [] };
+
+// Las RPCs que calculan productividad ignoran esto salvo que el proceso sea
+// 'anclaje' — pasarlo siempre es inofensivo para Recepción/Etiquetado.
+function flotasExcluidasParam(){
+  return CONFIG.flotasOcultas.length > 0 ? CONFIG.flotasOcultas : null;
+}
 let cachePersonas = [];
 let cacheHoraData = [];
 let currentFlotaFecha = null;
@@ -804,6 +802,9 @@ async function init(){
       document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
       document.getElementById('view-flota').style.display = tab==='flota' ? 'block' : 'none';
       document.getElementById('view-placa').style.display = tab==='placa' ? 'block' : 'none';
+      // Los filtros (Turno/Personal/Tipo/Revisión) solo aplican en las
+      // vistas que los usan de verdad: Por responsable y Por Placa.
+      document.getElementById('filtrosCompartidos').style.display = (tab==='personas' || tab==='placa') ? 'flex' : 'none';
       if(tab==='flota'){ loadFlota(); }
       if(tab==='placa'){ loadPlaca(); }
     });
@@ -833,7 +834,7 @@ async function loadConfig(){
     const { data: anom, error: e3 } = await supa.from('config_anomalias').select('*').eq('id', 1).maybeSingle();
     if(e3) throw e3;
     if(anom){
-      CONFIG.anomalias = { seg_imposible: anom.seg_imposible, seg_salto: anom.seg_salto, min_saltos: anom.min_saltos, pct_imposible: Number(anom.pct_imposible) };
+      CONFIG.anomalias = { seg_imposible: anom.seg_imposible, seg_salto: anom.seg_salto };
     }
 
     const { data: flotasOcultas, error: e4 } = await supa.from('config_flotas_ocultas').select('flota');
@@ -964,17 +965,18 @@ async function renderView(){
   const kpisEl = document.querySelector('.kpis');
   const tabsEl = document.querySelector('.tabs');
   const fechaControls = document.getElementById('fechaControls');
+  const filtrosCompartidos = document.getElementById('filtrosCompartidos');
   const footnote = document.getElementById('footnote');
 
   if(currentView === 'dashboard'){
-    kpisEl.style.display = 'grid'; tabsEl.style.display = 'flex'; fechaControls.style.display = 'flex'; footnote.style.display = 'block';
+    kpisEl.style.display = 'grid'; tabsEl.style.display = 'flex'; fechaControls.style.display = 'flex'; filtrosCompartidos.style.display = 'flex'; footnote.style.display = 'block';
     document.getElementById('view-personas').style.display = 'block';
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelector('.tab[data-tab="personas"]').classList.add('active');
     return;
   }
 
-  kpisEl.style.display = 'none'; tabsEl.style.display = 'none'; fechaControls.style.display = 'none'; footnote.style.display = 'none';
+  kpisEl.style.display = 'none'; tabsEl.style.display = 'none'; fechaControls.style.display = 'none'; filtrosCompartidos.style.display = 'none'; footnote.style.display = 'none';
   document.getElementById('eyebrow').textContent = { resumen:'Resumen general', tendencia:'Tendencia', estimador:'Estimador', config:'Configuración' }[currentView];
   document.getElementById('mainTitle').textContent = { resumen:'Resumen general', tendencia:'Tendencia de productividad', estimador:'¿Cuánto nos demoraríamos?', config:'Ajustes del dashboard' }[currentView];
   document.getElementById('subtitle').textContent = { resumen:'Los 3 procesos, un solo ranking', tendencia:'Cómo evoluciona el ritmo del equipo', estimador:'Planifica según el ritmo real', config:'Turnos, mínimos y carga de archivos' }[currentView];
@@ -1076,7 +1078,7 @@ async function loadPersonas(){
     const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
 
     if(modoFecha === 'DIA'){
-      const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0 });
+      const { data, error } = await supa.rpc('productividad_por_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0, p_flotas_excluidas: flotasExcluidasParam() });
       if(error) throw error;
       // Nombres normalizados (productividad / total_pedidos) para que los
       // filtros de turno/personal/mínimo funcionen igual en los 3 modos.
@@ -1087,7 +1089,7 @@ async function loadPersonas(){
     } else {
       const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
       const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
-      const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3, p_tipo_extra, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0 });
+      const { data, error } = await supa.rpc('productividad_historica', { p_proceso: currentProceso, p_umbral_min: 3, p_tipo_extra, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0, p_flotas_excluidas: flotasExcluidasParam() });
       if(error) throw error;
       cachePersonas = (data||[]).map(r=>({
         responsable: r.responsable, total_pedidos: r.total_pedidos, productividad: r.productividad_promedio,
@@ -1392,14 +1394,15 @@ function getFilteredPersonas(){
 let cacheAnomalias = {};   // responsable -> fila de anomalias_responsable
 
 // Umbrales configurables desde Configuración > Umbrales (CONFIG.anomalias).
-function esSospechosoConUmbrales(a, umbrales){
+// Simplificado: basta con que pase UNA vez para marcar — no se acumula
+// un mínimo de veces ni se mide un porcentaje.
+function esSospechosoConUmbrales(a){
   if(!a) return false;
-  return Number(a.saltos_dimension) >= umbrales.min_saltos
-      || Number(a.pct_imposibles || 0) >= umbrales.pct_imposible;
+  return Number(a.saltos_dimension) > 0 || Number(a.gaps_imposibles) > 0;
 }
 
 function esSospechoso(responsable){
-  return esSospechosoConUmbrales(cacheAnomalias[responsable], CONFIG.anomalias);
+  return esSospechosoConUmbrales(cacheAnomalias[responsable]);
 }
 
 function motivoSospecha(responsable){
@@ -1407,10 +1410,10 @@ function motivoSospecha(responsable){
   if(!a) return '';
   const u = CONFIG.anomalias;
   const motivos = [];
-  if(Number(a.saltos_dimension) >= u.min_saltos)
-    motivos.push(`${a.saltos_dimension} cambios de ${PROCESOS[currentProceso].dimLabel.toLowerCase()} en menos de ${u.seg_salto}s`);
-  if(Number(a.pct_imposibles || 0) >= u.pct_imposible)
-    motivos.push(`${a.pct_imposibles}% de escaneos a menos de ${u.seg_imposible}s (mediana ${a.p50_gap_seg}s)`);
+  if(Number(a.saltos_dimension) > 0)
+    motivos.push(`${a.saltos_dimension} cambio${a.saltos_dimension>1?'s':''} de ${PROCESOS[currentProceso].dimLabel.toLowerCase()} en menos de ${u.seg_salto}s`);
+  if(Number(a.gaps_imposibles) > 0)
+    motivos.push(`${a.gaps_imposibles} escaneo${a.gaps_imposibles>1?'s':''} a menos de ${u.seg_imposible}s (mediana ${a.p50_gap_seg}s)`);
   return motivos.join(' · ');
 }
 
@@ -1591,7 +1594,7 @@ function renderPersonasTable(){
       const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
 
       if(modoFecha === 'DIA'){
-        const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0 });
+        const { data, error } = await supa.rpc('sesiones_de_responsable', { p_proceso: currentProceso, p_fecha: currentFecha, p_responsable: p.responsable, p_umbral_min: 3, p_tipo_extra, p_minimo: CONFIG.minimos[currentProceso]||0, p_flotas_excluidas: flotasExcluidasParam() });
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar sesiones</span>'; return; }
         let sTable = `<table><thead><tr><th>Sesión</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>${PROCESOS[currentProceso].dimLabel}</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Ped/h</th></tr></thead><tbody>`;
         (data||[]).forEach(s=>{
@@ -1604,7 +1607,7 @@ function renderPersonasTable(){
       } else {
         const p_fecha_inicio = modoFecha === 'RANGO' ? rangoInicio : null;
         const p_fecha_fin = modoFecha === 'RANGO' ? rangoFin : null;
-        const { data, error } = await supa.rpc('productividad_diaria_responsable', { p_proceso: currentProceso, p_responsable: p.responsable, p_umbral_min: 3, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0 });
+        const { data, error } = await supa.rpc('productividad_diaria_responsable', { p_proceso: currentProceso, p_responsable: p.responsable, p_umbral_min: 3, p_fecha_inicio, p_fecha_fin, p_minimo: CONFIG.minimos[currentProceso]||0, p_flotas_excluidas: flotasExcluidasParam() });
         if(error){ panel.innerHTML = '<span style="color:var(--warn)">Error al cargar el detalle</span>'; return; }
         if(!data || data.length===0){ panel.innerHTML = '<span style="color:var(--text-muted); font-size:11.5px">Sin días registrados en este período.</span>'; return; }
         panel.innerHTML = data.map(d=>
@@ -1696,7 +1699,7 @@ async function loadResumen(){
   document.getElementById('resumenTopsWrap').innerHTML = '<div class="empty-state">Cargando…</div>';
   try{
     const results = await Promise.all(Object.keys(PROCESOS).map(key =>
-      supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3, p_minimo: CONFIG.minimos[key]||0 })
+      supa.rpc('productividad_historica', { p_proceso: key, p_umbral_min: 3, p_minimo: CONFIG.minimos[key]||0, p_flotas_excluidas: flotasExcluidasParam() })
     ));
     Object.keys(PROCESOS).forEach((key,i)=>{
       cacheHistoricoPorProceso[key] = (results[i].data || []).map(r => ({...r, proceso: key}));
@@ -1740,7 +1743,7 @@ function wireTopExpand(container){
         loaded = true;
         panel.textContent = 'Cargando…';
         const { data, error } = await supa.rpc('productividad_diaria_responsable', {
-          p_proceso: tr.dataset.proceso, p_responsable: tr.dataset.responsable, p_umbral_min: 3, p_minimo: CONFIG.minimos[tr.dataset.proceso]||0
+          p_proceso: tr.dataset.proceso, p_responsable: tr.dataset.responsable, p_umbral_min: 3, p_minimo: CONFIG.minimos[tr.dataset.proceso]||0, p_flotas_excluidas: flotasExcluidasParam()
         });
         if(error || !data || data.length===0){ panel.textContent = 'Sin días registrados.'; return; }
         panel.innerHTML = data.map(d=>{
@@ -1839,7 +1842,7 @@ async function loadResumenTipo(){
       supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'PICKUP', p_minimo: CONFIG.minimos.recepcion||0 }),
       supa.rpc('productividad_historica', { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra:'TRANSFERENCIA BU', p_minimo: CONFIG.minimos.recepcion||0 }),
       supa.rpc('productividad_historica', { p_proceso:'etiquetado', p_umbral_min:3, p_minimo: CONFIG.minimos.etiquetado||0 }),
-      supa.rpc('productividad_historica', { p_proceso:'anclaje', p_umbral_min:3, p_minimo: CONFIG.minimos.anclaje||0 }),
+      supa.rpc('productividad_historica', { p_proceso:'anclaje', p_umbral_min:3, p_minimo: CONFIG.minimos.anclaje||0, p_flotas_excluidas: flotasExcluidasParam() }),
     ]);
     cacheResumenTipo = [
       { label:'Recepción · Pickup', rows: recPickup.data || [] },
@@ -1998,7 +2001,7 @@ async function calcularTiempo(){
 
   let historico = cacheHistoricoPorProceso[proceso];
   if(!historico || historico.length===0){
-    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: proceso, p_umbral_min: 3, p_minimo: CONFIG.minimos[proceso]||0 });
+    const { data, error } = await supa.rpc('productividad_historica', { p_proceso: proceso, p_umbral_min: 3, p_minimo: CONFIG.minimos[proceso]||0, p_flotas_excluidas: flotasExcluidasParam() });
     historico = error ? [] : (data||[]);
     cacheHistoricoPorProceso[proceso] = historico.map(r=>({...r, proceso}));
   }
@@ -2305,8 +2308,6 @@ async function mostrarTodasLasFlotas(){
 function renderUmbralesInputs(){
   document.getElementById('anomSegImposible').value = CONFIG.anomalias.seg_imposible;
   document.getElementById('anomSegSalto').value = CONFIG.anomalias.seg_salto;
-  document.getElementById('anomMinSaltos').value = CONFIG.anomalias.min_saltos;
-  document.getElementById('anomPctImposible').value = CONFIG.anomalias.pct_imposible;
   document.getElementById('anomGuardarEstado').textContent = '';
 
   const selProceso = document.getElementById('anomPrevProceso');
@@ -2319,8 +2320,6 @@ async function guardarUmbrales(){
   const nuevos = {
     seg_imposible: Math.max(0, parseInt(document.getElementById('anomSegImposible').value)||0),
     seg_salto: Math.max(0, parseInt(document.getElementById('anomSegSalto').value)||0),
-    min_saltos: Math.max(0, parseInt(document.getElementById('anomMinSaltos').value)||0),
-    pct_imposible: Math.min(100, Math.max(0, parseFloat(document.getElementById('anomPctImposible').value)||0)),
   };
   btn.disabled = true; btn.textContent = 'Guardando…';
   try{
@@ -2361,8 +2360,6 @@ async function probarUmbrales(){
   const draft = {
     seg_imposible: Math.max(0, parseInt(document.getElementById('anomSegImposible').value)||0),
     seg_salto: Math.max(0, parseInt(document.getElementById('anomSegSalto').value)||0),
-    min_saltos: Math.max(0, parseInt(document.getElementById('anomMinSaltos').value)||0),
-    pct_imposible: Math.min(100, Math.max(0, parseFloat(document.getElementById('anomPctImposible').value)||0)),
   };
 
   resultado.innerHTML = '<div class="empty-state">Calculando…</div>';
@@ -2372,14 +2369,14 @@ async function probarUmbrales(){
     });
     if(error) throw error;
     const filas = data || [];
-    const marcados = filas.filter(a => esSospechosoConUmbrales(a, draft));
+    const marcados = filas.filter(a => esSospechosoConUmbrales(a));
 
     if(filas.length===0){ resultado.innerHTML = '<div class="empty-state">Sin pistoleos ese día.</div>'; return; }
 
     const lista = marcados.map(a=>{
       const motivos = [];
-      if(Number(a.saltos_dimension) >= draft.min_saltos) motivos.push(`${a.saltos_dimension} saltos de dimensión`);
-      if(Number(a.pct_imposibles||0) >= draft.pct_imposible) motivos.push(`${a.pct_imposibles}% gaps <${draft.seg_imposible}s`);
+      if(Number(a.saltos_dimension) > 0) motivos.push(`${a.saltos_dimension} salto${a.saltos_dimension>1?'s':''} de dimensión`);
+      if(Number(a.gaps_imposibles) > 0) motivos.push(`${a.gaps_imposibles} gap${a.gaps_imposibles>1?'s':''} <${draft.seg_imposible}s`);
       return `<div style="display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12px">
         <span class="placa">${a.responsable}</span>
         <span style="color:var(--text-muted); font-family:var(--font-mono); font-size:11px">${motivos.join(' · ')}</span>
