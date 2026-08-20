@@ -2577,9 +2577,24 @@ async function stageFile(file, procesoKey){
     }
     rows = sinDup;
 
+    // Paso esencial: en Recepción solo se aceptan PICKUP y TRANSFERENCIA BU
+    // en "Tipo Recepción" — cualquier otro valor se descarta automáticamente
+    // (no se sube ni queda a medias, se elimina antes de guardar).
+    let tipoExcluidos = 0;
+    if(procesoKey === 'recepcion'){
+      const antesDeTipo = rows.length;
+      rows = rows.map(r=>{
+        if(r.tipo_extra != null) r.tipo_extra = String(r.tipo_extra).trim().toUpperCase();
+        return r;
+      }).filter(r => r.tipo_extra === 'PICKUP' || r.tipo_extra === 'TRANSFERENCIA BU');
+      tipoExcluidos = antesDeTipo - rows.length;
+    }
+
     if(rows.length === 0){
       statusEl.className = 'upload-status show error';
-      statusEl.textContent = 'No se encontraron filas válidas — revisa que las columnas coincidan con las esperadas.';
+      statusEl.textContent = procesoKey === 'recepcion' && tipoExcluidos > 0
+        ? 'Ninguna fila tiene "PICKUP" ni "TRANSFERENCIA BU" en Tipo Recepción — revisa esa columna.'
+        : 'No se encontraron filas válidas — revisa que las columnas coincidan con las esperadas.';
       staged[procesoKey] = null;
       actualizarBotonGuardar();
       return;
@@ -2597,6 +2612,7 @@ async function stageFile(file, procesoKey){
       </div>`).join('');
     statusEl.innerHTML = `✓ ${file.name} — ${rows.length} filas listas para subir (todavía no se guardó).
       ${duplicados > 0 ? `<div style="font-size:11px; color:var(--warn); margin-top:4px">${duplicados} duplicado${duplicados>1?'s':''} exacto${duplicados>1?'s':''} descartado${duplicados>1?'s':''} del archivo.</div>` : ''}
+      ${tipoExcluidos > 0 ? `<div style="font-size:11px; color:var(--warn); margin-top:4px">${tipoExcluidos} fila${tipoExcluidos>1?'s':''} descartada${tipoExcluidos>1?'s':''} por no tener "PICKUP" ni "TRANSFERENCIA BU" en Tipo Recepción.</div>` : ''}
       ${!flotaColumnaExiste ? `<div style="font-size:11px; color:var(--warn); margin-top:4px">⚠ No se encontró la columna "${map.flota}" — revisa el nombre exacto en el Excel. La Flota quedará vacía para estas filas.</div>` : ''}
       <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">
         <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px">
