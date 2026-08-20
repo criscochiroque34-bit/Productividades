@@ -235,6 +235,7 @@
     <button class="tab active" data-tab="personas">Por responsable</button>
     <button class="tab" data-tab="dim" id="tabDimBtn">Por dimensión / hora</button>
     <button class="tab" data-tab="flota" id="tabFlotaBtn" style="display:none">Por Flota</button>
+    <button class="tab" data-tab="placa" id="tabPlacaBtn" style="display:none">Por Placa</button>
   </div>
 
   <div id="view-personas">
@@ -367,6 +368,14 @@
     <div class="flota-list" id="flotaListWrap"></div>
   </div>
 
+  <div id="view-placa" style="display:none">
+    <div class="card" id="placaCaveat">
+      <div style="font-size:11.5px; color:var(--warn)">⚠ La productividad de cada placa se calcula solo con los escaneos de esa placa — si un responsable roto entre varias placas el mismo día, sus sesiones se cortan distinto que en "Por responsable", así que el número puede diferir de su productividad general.</div>
+    </div>
+    <div class="kpis" id="placaKpisWrap"></div>
+    <div class="flota-list" id="placaListWrap"></div>
+  </div>
+
   <div class="footnote" id="footnote"></div>
 
   <div id="view-resumen" style="display:none">
@@ -451,8 +460,7 @@
   <div id="view-config" style="display:none">
     <div class="subtabs">
       <button class="subtab active" data-subtab="datos">📁 Datos</button>
-      <button class="subtab" data-subtab="personas">👥 Personas</button>
-      <button class="subtab" data-subtab="umbrales">⚙ Umbrales</button>
+      <button class="subtab" data-subtab="torre">🎛 Torre de Control</button>
     </div>
 
     <div id="cfg-datos">
@@ -475,7 +483,13 @@
       </div>
     </div>
 
-    <div id="cfg-personas" style="display:none">
+    <div id="cfg-torre" style="display:none">
+      <div class="card">
+        <div class="card-title">🚩 Flotas</div>
+        <div class="card-sub">Elige qué Flotas se muestran en "Por Flota" (Anclaje) — las que destildes se ocultan de esa vista, pero el dato sigue intacto en la base.</div>
+        <div id="flotasChecklistWrap">Cargando…</div>
+      </div>
+
       <div class="card">
         <div class="card-title">Turnos por responsable</div>
         <div class="card-sub">Asigna turno Día / Noche y tipo de personal · aplica como filtro en las 3 vistas de proceso</div>
@@ -502,9 +516,7 @@
           <table><thead><tr><th>Responsable</th><th>Turno</th><th>Personal</th><th></th></tr></thead><tbody id="turnosBody"></tbody></table>
         </div>
       </div>
-    </div>
 
-    <div id="cfg-umbrales" style="display:none">
       <div class="card">
         <div class="card-title">Mínimo de pedidos por proceso</div>
         <div class="card-sub">Oculta a quienes no lleguen a este mínimo — aplica en Por responsable, Resumen, Tendencia y Flota</div>
@@ -609,7 +621,7 @@ let modoFecha = 'DIA'; // 'DIA' | 'RANGO' | 'TODO'
 let rangoInicio = null;
 let rangoFin = null;
 let fechasDisponiblesCache = []; // [{fecha, total}], desc, para el proceso actual
-let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 }, anomalias: { seg_imposible:2, seg_salto:15, min_saltos:3, pct_imposible:15 } };
+let CONFIG = { turnos: {}, personal: {}, minimos: { recepcion: 0, etiquetado: 0, anclaje: 0 }, anomalias: { seg_imposible:2, seg_salto:15, min_saltos:3, pct_imposible:15 }, flotasOcultas: [] };
 let cachePersonas = [];
 let cacheHoraData = [];
 let currentFlotaFecha = null;
@@ -735,7 +747,7 @@ async function init(){
       document.querySelectorAll('.subtab').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const sub = btn.dataset.subtab;
-      ['datos','personas','umbrales'].forEach(s=>{
+      ['datos','torre'].forEach(s=>{
         document.getElementById('cfg-'+s).style.display = (s===sub) ? 'block' : 'none';
       });
     });
@@ -771,7 +783,9 @@ async function init(){
       document.getElementById('view-personas').style.display = tab==='personas' ? 'block' : 'none';
       document.getElementById('view-dim').style.display = tab==='dim' ? 'block' : 'none';
       document.getElementById('view-flota').style.display = tab==='flota' ? 'block' : 'none';
+      document.getElementById('view-placa').style.display = tab==='placa' ? 'block' : 'none';
       if(tab==='flota'){ loadFlota(); }
+      if(tab==='placa'){ loadPlaca(); }
     });
   });
   document.getElementById('calcBtn').addEventListener('click', calcularTiempo);
@@ -801,6 +815,11 @@ async function loadConfig(){
     if(anom){
       CONFIG.anomalias = { seg_imposible: anom.seg_imposible, seg_salto: anom.seg_salto, min_saltos: anom.min_saltos, pct_imposible: Number(anom.pct_imposible) };
     }
+
+    const { data: flotasOcultas, error: e4 } = await supa.from('config_flotas_ocultas').select('flota');
+    if(e4) throw e4;
+    CONFIG.flotasOcultas = (flotasOcultas||[]).map(f => f.flota);
+
     setStatus(true);
   } catch(err){
     console.error(err);
@@ -914,7 +933,7 @@ function renderProcesoSelector(){
 let currentView = 'dashboard';
 
 function hideAllViews(){
-  ['view-personas','view-dim','view-flota','view-resumen','view-tendencia','view-estimador','view-config'].forEach(id=>{
+  ['view-personas','view-dim','view-flota','view-placa','view-resumen','view-tendencia','view-estimador','view-config'].forEach(id=>{
     document.getElementById(id).style.display = 'none';
   });
 }
@@ -949,6 +968,7 @@ async function renderView(){
     renderUmbralesInputs();
     loadResponsablesConocidos();
     loadDiasCargados();
+    loadFlotasChecklist();
   }
 }
 
@@ -989,7 +1009,7 @@ async function loadProceso(){
   const tabFlotaBtn = document.getElementById('tabFlotaBtn');
   tabFlotaBtn.style.display = currentProceso === 'anclaje' ? 'inline-block' : 'none';
   if(currentProceso === 'anclaje') loadFlotaFechas();
-  else {
+  else if(document.querySelector('.tab[data-tab="flota"]').classList.contains('active')){
     // Si veníamos de la pestaña Flota y cambiamos a otro proceso (que no
     // la tiene), volvemos a "Por responsable" para no dejar la vista huérfana.
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -997,6 +1017,20 @@ async function loadProceso(){
     document.getElementById('view-personas').style.display = 'block';
     document.getElementById('view-dim').style.display = 'none';
     document.getElementById('view-flota').style.display = 'none';
+  }
+
+  const tabPlacaBtn = document.getElementById('tabPlacaBtn');
+  tabPlacaBtn.style.display = currentProceso === 'recepcion' ? 'inline-block' : 'none';
+  if(currentProceso === 'recepcion'){
+    // Comparte el Día/Rango/Todo de arriba: si la pestaña ya está abierta,
+    // se refresca sola cuando cambia la fecha/rango, igual que "Por responsable".
+    if(document.querySelector('.tab[data-tab="placa"]').classList.contains('active')) loadPlaca();
+  } else if(document.querySelector('.tab[data-tab="placa"]').classList.contains('active')){
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.tab[data-tab="personas"]').classList.add('active');
+    document.getElementById('view-personas').style.display = 'block';
+    document.getElementById('view-dim').style.display = 'none';
+    document.getElementById('view-placa').style.display = 'none';
   }
 
   if(!currentFecha){
@@ -1123,7 +1157,9 @@ async function loadFlota(){
   try{
     const { data, error } = await supa.rpc('anclaje_por_flota', params);
     if(error) throw error;
-    cacheFlota = data || [];
+    // Solo visualización: la Flota oculta se filtra acá, el dato de esos
+    // pistoleos sigue existiendo tal cual en la base.
+    cacheFlota = (data || []).filter(r => !CONFIG.flotasOcultas.includes(r.flota));
   } catch(err){ console.error(err); cacheFlota = []; }
   renderFlota();
 }
@@ -1198,6 +1234,101 @@ function renderFlota(){
   let html = ordenFlotas.map(k => bloqueHtml(k, grupos[k], false)).join('');
   if(sinAsignarRows.length > 0) html += bloqueHtml(null, sinAsignarRows, true);
   listWrap.innerHTML = html;
+}
+
+// ============================================================
+// Recepción por Placa — comparte el mismo Día/Rango/Todo de arriba
+// (no tiene selector propio, a diferencia de Flota).
+// ============================================================
+let cachePlaca = [];
+
+async function loadPlaca(){
+  const listWrap = document.getElementById('placaListWrap');
+  if(!currentFecha){
+    document.getElementById('placaKpisWrap').innerHTML = '';
+    listWrap.innerHTML = '<div class="card"><div class="empty-state">Sin datos cargados para Recepción todavía.</div></div>';
+    return;
+  }
+  listWrap.innerHTML = '<div class="card"><div class="empty-state">Cargando…</div></div>';
+
+  const tipoSel = document.getElementById('tipoRecepcionFilter').value;
+  const p_tipo_extra = tipoSel === 'TODOS' ? null : tipoSel;
+  const params = { p_proceso:'recepcion', p_umbral_min:3, p_tipo_extra, p_minimo: CONFIG.minimos.recepcion||0, p_fecha:null, p_fecha_inicio:null, p_fecha_fin:null };
+  if(modoFecha === 'DIA') params.p_fecha = currentFecha;
+  else if(modoFecha === 'RANGO'){ params.p_fecha_inicio = rangoInicio; params.p_fecha_fin = rangoFin; }
+
+  try{
+    const { data, error } = await supa.rpc('productividad_por_dimension', params);
+    if(error) throw error;
+    cachePlaca = data || [];
+  } catch(err){ console.error(err); cachePlaca = []; }
+  renderPlaca();
+}
+
+function renderPlaca(){
+  const kpisWrap = document.getElementById('placaKpisWrap');
+  const listWrap = document.getElementById('placaListWrap');
+
+  if(cachePlaca.length===0){
+    kpisWrap.innerHTML = '';
+    listWrap.innerHTML = '<div class="card"><div class="empty-state">Sin pistoleos de recepción en este período.</div></div>';
+    return;
+  }
+
+  const grupos = {};
+  cachePlaca.forEach(r=>{
+    if(!grupos[r.dimension]) grupos[r.dimension] = [];
+    grupos[r.dimension].push(r);
+  });
+
+  const totalPistoleos = cachePlaca.reduce((a,r)=>a+Number(r.total_pedidos),0);
+  const placas = Object.keys(grupos);
+
+  let topPlaca = null, topPlacaProm = -1;
+  placas.forEach(k=>{
+    const rows = grupos[k];
+    const prom = rows.reduce((a,r)=>a+Number(r.productividad),0)/rows.length;
+    if(prom > topPlacaProm){ topPlacaProm = prom; topPlaca = k; }
+  });
+  const responsablesUnicos = new Set(cachePlaca.map(r=>r.responsable)).size;
+  const subEtiqueta = modoFecha === 'DIA' ? 'día seleccionado' : (modoFecha === 'RANGO' ? 'rango seleccionado' : 'todo el histórico');
+
+  kpisWrap.innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total pistoleos</div><div class="kpi-value">${totalPistoleos.toLocaleString('es-PE')}</div><div class="kpi-sub">${subEtiqueta}</div></div>
+    <div class="kpi"><div class="kpi-label">Placas activas</div><div class="kpi-value">${placas.length}</div><div class="kpi-sub">con al menos 1 pistoleo</div></div>
+    <div class="kpi"><div class="kpi-label">Top placa</div><div class="kpi-value accent">${topPlaca ? topPlacaProm.toFixed(1)+'/h' : '—'}</div><div class="kpi-sub">${topPlaca || '—'}</div></div>
+    <div class="kpi"><div class="kpi-label">Responsables activos</div><div class="kpi-value">${responsablesUnicos}</div><div class="kpi-sub">con pistoleos en el período</div></div>
+  `;
+
+  const ordenPlacas = placas.sort((a,b)=> a.localeCompare(b, 'es', {numeric:true}));
+
+  const bloqueHtml = (nombre, rows) => {
+    const prom = rows.reduce((a,r)=>a+Number(r.productividad),0)/rows.length;
+    const totalPed = rows.reduce((a,r)=>a+Number(r.total_pedidos),0);
+    const filas = rows.slice().sort((a,b)=>b.productividad-a.productividad).map(r=>
+      `<tr><td class="placa">${r.responsable}</td><td class="num">${r.total_pedidos}</td><td class="num">${r.n_sesiones}</td><td class="num" style="color:var(--positive)">${Number(r.productividad).toFixed(1)}/h</td></tr>`
+    ).join('');
+    return `<details class="flota-card">
+      <summary>
+        <div class="flota-head-left">
+          <span class="flota-chevron">&#9656;</span>
+          <div class="flota-name">${nombre}<small>${rows.length} responsable${rows.length>1?'s':''}</small></div>
+        </div>
+        <div class="flota-summary-nums">
+          <div class="flota-summary-item"><div class="num">${totalPed}</div><div class="lbl">pedidos</div></div>
+          <div class="flota-prom"><div class="num">${prom.toFixed(1)}/h</div><div class="lbl">promedio</div></div>
+        </div>
+      </summary>
+      <div class="flota-body"><div class="flota-body-inner">
+        <table>
+          <thead><tr><th>Responsable</th><th class="num">Pedidos</th><th class="num">Sesiones</th><th class="num">Productividad</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div></div>
+    </details>`;
+  };
+
+  listWrap.innerHTML = ordenPlacas.map(k => bloqueHtml(k, grupos[k])).join('');
 }
 
 // ============================================================
@@ -2062,6 +2193,61 @@ function renderMinimosTable(){
 // ============================================================
 // Umbrales de detección de cuentas compartidas (Configuración > Umbrales)
 // ============================================================
+// ============================================================
+// Checklist de Flotas (Configuración > Torre de Control)
+// Estar en config_flotas_ocultas = oculta de "Por Flota"; el dato de
+// esa Flota sigue intacto en pistoleos, esto es solo de visualización.
+// ============================================================
+async function loadFlotasChecklist(){
+  const wrap = document.getElementById('flotasChecklistWrap');
+  wrap.textContent = 'Cargando…';
+  try{
+    const { data, error } = await supa.rpc('flotas_conocidas');
+    if(error) throw error;
+    renderFlotasChecklist(data || []);
+  } catch(err){
+    console.error(err);
+    wrap.innerHTML = '<div class="empty-state">Error al cargar las flotas.</div>';
+  }
+}
+
+function renderFlotasChecklist(flotas){
+  const wrap = document.getElementById('flotasChecklistWrap');
+  if(flotas.length === 0){
+    wrap.innerHTML = '<div class="empty-state">Todavía no hay Flotas cargadas — suben con el Excel de Recepción.</div>';
+    return;
+  }
+  wrap.innerHTML = flotas.map(f=>{
+    const oculta = CONFIG.flotasOcultas.includes(f.flota);
+    const idSafe = 'flota-chk-' + f.flota.replace(/[^a-zA-Z0-9]/g,'_');
+    return `<label for="${idSafe}" style="display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border); cursor:pointer">
+      <input type="checkbox" id="${idSafe}" data-flota="${f.flota.replace(/"/g,'&quot;')}" ${oculta?'':'checked'} style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer">
+      <span class="placa" style="flex:1">${f.flota}</span>
+      <span style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted)">${f.total_pedidos} pedidos</span>
+    </label>`;
+  }).join('');
+
+  wrap.querySelectorAll('input[type=checkbox]').forEach(chk=>{
+    chk.addEventListener('change', async ()=>{
+      const flota = chk.dataset.flota;
+      chk.disabled = true;
+      try{
+        if(chk.checked){
+          await supa.from('config_flotas_ocultas').delete().eq('flota', flota);
+          CONFIG.flotasOcultas = CONFIG.flotasOcultas.filter(f => f !== flota);
+        } else {
+          await supa.from('config_flotas_ocultas').upsert({ flota });
+          if(!CONFIG.flotasOcultas.includes(flota)) CONFIG.flotasOcultas.push(flota);
+        }
+      } catch(err){
+        console.error(err);
+        chk.checked = !chk.checked; // revierte si falló el guardado
+      }
+      chk.disabled = false;
+    });
+  });
+}
+
 function renderUmbralesInputs(){
   document.getElementById('anomSegImposible').value = CONFIG.anomalias.seg_imposible;
   document.getElementById('anomSegSalto').value = CONFIG.anomalias.seg_salto;
